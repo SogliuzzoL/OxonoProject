@@ -1,7 +1,9 @@
-import random
+import os
+
+import torch
 
 from agent import Agent
-from oxono import Game
+from config import MODEL_PATH
 from oxononet import OptimalOxonoNet, all_possible_actions, predict, probs_to_dict
 
 
@@ -11,6 +13,8 @@ class ZeroAgent(Agent):
         self.all_actions = all_possible_actions()
         self.input_channels = 7
         self.net = OptimalOxonoNet(self.input_channels, len(self.all_actions))
+        if os.path.exists(MODEL_PATH):
+            self.net.load_state_dict(torch.load(MODEL_PATH))
 
     def act(self, state, remaining_time):
         probs, value = predict(state, self.net, self.all_actions)

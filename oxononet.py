@@ -124,8 +124,9 @@ def predict(state: State, net: OptimalOxonoNet, all_actions: list) -> tuple[torc
             idx = all_actions.index(move_tuple)
             legal_mask[idx] = True
 
-        policy_logits[0, ~legal_mask] = float('-inf')
-        masked_probs = F.softmax(policy_logits, dim=-1)
+        masked_logits = policy_logits.clone()
+        masked_logits[0, ~legal_mask] = float('-inf')
+        masked_probs = F.softmax(masked_logits, dim=-1)
 
     return masked_probs.squeeze(0), value.squeeze(0)
 
