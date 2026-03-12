@@ -5,20 +5,53 @@ import torch.nn.functional as F
 from oxono import Game, State
 
 
-def all_possible_actions():
+def all_possible_actions() -> list[tuple[str, tuple[int, int], tuple[int, int]]]:
     actions = []
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
     for totem in ['O', 'X']:
         for totem_row in range(6):
             for totem_col in range(6):
-                for d_row, d_col in directions:
-                    player_row, player_col = totem_row + d_row, totem_col + d_col
-                    if 0 <= player_row < 6 and 0 <= player_col < 6:
-                        actions.append(
-                            (totem, (totem_row, totem_col), (player_row, player_col)))
+                for piece_row in range(6):
+                    for piece_col in range(6):
+                        if (totem_row, totem_col) != (piece_row, piece_col):
+                            move = (totem, (totem_row, totem_col),
+                                    (piece_row, piece_col))
+                            actions.append(move)
 
     return actions
+
+
+def state_to_tensor(state: State) -> torch.Tensor:
+    tensor = torch.zeros((7, 6, 6), dtype=torch.float32)
+    for row in range(6):
+        for col in range(6):
+            square = state.board[row][col]
+            if square is None:
+                continue
+
+            symbol = square[0]
+            color = square[1]
+            if symbol == 'o':
+                if color:
+                    tensor[0, row, col] = 1.0
+                else:
+                    tensor[1, row, col] = 1.0
+            elif symbol == 'x':
+                if color:
+                    tensor[2, row, col] = 1.0
+                else:
+                    tensor[3, row, col] = 1.0
+
+    totem_O = state.totem_O
+    totem_X = state.totem_X
+
+    tensor[4, totem_O[0], totem_O[1]] = 1.0
+    tensor[5, totem_X[0], totem_X[1]] = 1.0
+
+    current_player = state.current_player
+    tensor[6, :, :] = 1.0 if current_player else 0.0
+
+    return tensor
 
 
 class ResidualBlock(nn.Module):
@@ -73,3 +106,40 @@ class OptimalOxonoNet(nn.Module):
         value = torch.tanh(self.value_fc2(v))
 
         return policy_logits, value
+
+
+def predict(state: State, net: OptimalOxonoNet, all_actions: list) -> tuple[torch.Tensor, torch.Tensor]:
+    tensor = state_to_tensor(state).unsqueeze(0)
+    legal_moves = list(Game.actions(state))
+
+    with torch.no_grad():
+        policy_logits, value = net(tensor)
+
+        legal_mask = torch.zeros(
+            policy_logits.size(-1), dtype=torch.bool).to(policy_logits.device)
+
+        for move in legal_moves:
+            move_tuple = (move[0], (move[1][0], move[1][1]),
+                          (move[2][0], move[2][1]))
+            idx = all_actions.index(move_tuple)
+            legal_mask[idx] = True
+
+        policy_logits[0, ~legal_mask] = float('-inf')
+        masked_probs = F.softmax(policy_logits, dim=-1)
+
+    return masked_probs.squeeze(0), value.squeeze(0)
+
+
+def probs_to_dict(probs: torch.Tensor, all_actions: list) -> dict:
+    action_probs = {}
+    for idx, prob in enumerate(probs):
+        if prob == 0:
+            continue
+        action = all_actions[idx]
+        action_probs[action] = prob.item()
+
+    sorted_action_probs = dict(sorted(action_probs.items(),
+                                      key=lambda item: item[1],
+                                      reverse=True))
+
+    return sorted_action_probs
