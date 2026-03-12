@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from config import DEVICE
 from oxono import Game, State
 
 
@@ -109,7 +110,7 @@ class OptimalOxonoNet(nn.Module):
 
 
 def predict(state: State, net: OptimalOxonoNet, all_actions: list) -> tuple[torch.Tensor, torch.Tensor]:
-    tensor = state_to_tensor(state).unsqueeze(0)
+    tensor = state_to_tensor(state).unsqueeze(0).to(DEVICE)
     legal_moves = list(Game.actions(state))
 
     with torch.no_grad():
