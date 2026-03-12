@@ -11,7 +11,6 @@ class Agent:
         The index assigned to this agent for the current game (0 or 1).
     """
 
-
     def __init__(self, player):
         """
         Initialise the agent.
@@ -27,7 +26,7 @@ class Agent:
             The index assigned to this agent for the current game (0 or 1).
         """
         self.player = player
-    
+
     def act(self, state, remaining_time):
         """
         Choose and return an action for the current turn.

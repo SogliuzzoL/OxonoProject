@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+
 @dataclass(slots=True)
 class State:
     """
@@ -56,6 +57,7 @@ class State:
         new_board = [row[:] for row in self.board]
         return State(new_board, self.totem_O, self.totem_X, self.current_player, self.pieces_x[:], self.pieces_o[:], self.last_move)
 
+
 class Game:
     """
     Static class implementing the rules of Oxono.
@@ -85,7 +87,7 @@ class Game:
             0 for player 0 (pink), 1 for player 1 (black).
         """
         return state.current_player
-    
+
     @staticmethod
     def _totems_actions(state: State, totem: str) -> list[tuple[str, tuple[int, int]]]:
         """
@@ -143,7 +145,8 @@ class Game:
             if not movable:
                 for nr in range(0, 6):
                     for nc in range(0, 6):
-                        if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:  # If not free
+                        # If not free
+                        if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:
                             continue
                         movable = True
                         totem_actions.append((nr, nc))
@@ -190,7 +193,8 @@ class Game:
                 if not placable:
                     for nr in range(0, 6):
                         for nc in range(0, 6):
-                            if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:  # If not free
+                            # If not free
+                            if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:
                                 continue
                             all_actions.append(('O', (r, c), (nr, nc)))
 
@@ -210,10 +214,11 @@ class Game:
                 if not placable:
                     for nr in range(0, 6):
                         for nc in range(0, 6):
-                            if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:  # If not free
+                            # If not free
+                            if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:
                                 continue
                             all_actions.append(('X', (r, c), (nr, nc)))
-        
+
         return all_actions
 
     @staticmethod
@@ -238,18 +243,19 @@ class Game:
             state.totem_O = totem_pos
         else:
             state.totem_X = totem_pos
-        state.board[piece_pos[0]][piece_pos[1]] = ('o' if totem == 'O' else 'x', state.current_player)
-        
+        state.board[piece_pos[0]][piece_pos[1]] = (
+            'o' if totem == 'O' else 'x', state.current_player)
+
         if totem == 'O':
             state.pieces_o[state.current_player] -= 1
-        else: 
+        else:
             state.pieces_x[state.current_player] -= 1
-        
+
         state.last_move = piece_pos
 
         if state.pieces_o[1 - state.current_player] > 0 or state.pieces_x[1 - state.current_player] > 0:
             state.current_player = 1 - state.current_player
-    
+
     @staticmethod
     def _last_piece_won(state: State) -> bool:
         """
@@ -272,7 +278,7 @@ class Game:
         last_move = state.last_move
         if last_move is None:
             return False
-        
+
         board = state.board
         r, c = last_move
         cell = board[r][c]
@@ -293,17 +299,17 @@ class Game:
                         count_symbol += 1
                     else:
                         valid_symbol = False
-                    
+
                     if col == color and valid_color:
                         count_color += 1
                     else:
                         valid_color = False
-                    
+
                     if not valid_symbol and not valid_color:
                         break
                 else:
                     break
-            
+
             valid_symbol = True
             valid_color = True
             for i in range(1, 4):
@@ -314,12 +320,12 @@ class Game:
                         count_symbol += 1
                     else:
                         valid_symbol = False
-                    
+
                     if col == color and valid_color:
                         count_color += 1
                     else:
                         valid_color = False
-                    
+
                     if not valid_symbol and not valid_color:
                         break
                 else:
@@ -351,10 +357,11 @@ class Game:
         """
         if Game._last_piece_won(state):
             return True
-        
-        if state.pieces_o == [0, 0] and state.pieces_x == [0, 0]:  # No one can move anymore -> Draw
+
+        # No one can move anymore -> Draw
+        if state.pieces_o == [0, 0] and state.pieces_x == [0, 0]:
             return True
-            
+
         return False
 
     @staticmethod

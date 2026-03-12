@@ -1,13 +1,16 @@
-from oxono import Game, State
+import argparse
+import math
+import sys
 from pathlib import Path
 
 import pygame
-import sys
-import math
-import argparse
+
+from oxono import Game, State
+
 
 def truncate(f, n):
     return math.floor(f * 10 ** n) / 10 ** n
+
 
 class Replayer:
 
@@ -23,28 +26,29 @@ class Replayer:
         self.dim = (6, 6)
 
         pygame.init()
-        
-        self.screen = pygame.display.set_mode((70*self.dim[1] + 100, 70*self.dim[0] + 150))
+
+        self.screen = pygame.display.set_mode(
+            (70*self.dim[1] + 100, 70*self.dim[0] + 150))
         pygame.display.set_caption("Replayer Oxono")
 
         self.number_font = pygame.font.Font(None, 36)
         self.win_font = pygame.font.Font(None, 52)
 
         self.pieces = {
-            ('x', 0) : self._create_piece_surface('x', 0),
-            ('x', 1) : self._create_piece_surface('x', 1),
-            ('o', 0) : self._create_piece_surface('o', 0),
-            ('o', 1) : self._create_piece_surface('o', 1)
+            ('x', 0): self._create_piece_surface('x', 0),
+            ('x', 1): self._create_piece_surface('x', 1),
+            ('o', 0): self._create_piece_surface('o', 0),
+            ('o', 1): self._create_piece_surface('o', 1)
         }
 
         self.totems = {
-            'X' : self._create_totem_surface('x'),
-            'O' : self._create_totem_surface('o')
+            'X': self._create_totem_surface('x'),
+            'O': self._create_totem_surface('o')
         }
 
         self.clock = pygame.time.Clock()
         self.running = True
-    
+
     def _read(self, path_to_file):
         path = Path(path_to_file)
         with path.open('r', encoding="utf-8") as f:
@@ -68,14 +72,15 @@ class Replayer:
     def _create_piece_surface(self, symbol, player):
         surface = pygame.Surface((70, 70), pygame.SRCALPHA)
         center = (35, 35)
-        pygame.draw.circle(surface, (51, 63, 73) if player == 1 else (254, 44, 135), center, 28)
-        
+        pygame.draw.circle(surface, (51, 63, 73) if player ==
+                           1 else (254, 44, 135), center, 28)
+
         if symbol == 'o':
             pygame.draw.circle(surface, (255, 255, 255), center, 15, width=6)
         else:
             w = 3  # half-width of the arms
-            s = 12 # spread from center
-            
+            s = 12  # spread from center
+
             # Coordinates relative to center (35, 35)
             points = [
                 (35-s, 35-s+w), (35-s+w, 35-s), (35, 35-w), (35+s-w, 35-s),
@@ -83,7 +88,7 @@ class Replayer:
                 (35, 35+w), (35-s+w, 35+s), (35-s, 35+s-w), (35-w, 35)
             ]
             pygame.draw.polygon(surface, (255, 255, 255), points)
-        
+
         return surface
 
     def _create_totem_surface(self, symbol):
@@ -92,13 +97,13 @@ class Replayer:
         rect_area = pygame.Rect(7, 7, 56, 56)
 
         pygame.draw.rect(surface, (1, 195, 255), rect_area, border_radius=12)
-        
+
         if symbol == 'o':
             pygame.draw.circle(surface, (255, 255, 255), (35, 35), 15, width=6)
         else:
             w = 3  # half-width of the arms
-            s = 12 # spread from center
-            
+            s = 12  # spread from center
+
             # Coordinates relative to center (35, 35)
             points = [
                 (35-s, 35-s+w), (35-s+w, 35-s), (35, 35-w), (35+s-w, 35-s),
@@ -106,13 +111,13 @@ class Replayer:
                 (35, 35+w), (35-s+w, 35+s), (35-s, 35+s-w), (35-w, 35)
             ]
             pygame.draw.polygon(surface, (255, 255, 255), points)
-        
+
         return surface
-    
+
     def forward(self):
         if self.index >= len(self.steps):  # Cannot go too far in the future
             return
-        
+
         if self.index < len(self.frames)-1:  # We can simply increase the index
             self.index += 1
         else:  # We have to create new state based on the steps
@@ -135,14 +140,15 @@ class Replayer:
                     next_time_0 = remaining_time
                 else:
                     next_time_1 = remaining_time
-            
-            self.frames.append((next_player, next_state, next_time_0, next_time_1, next_reason))
+
+            self.frames.append(
+                (next_player, next_state, next_time_0, next_time_1, next_reason))
             self.index += 1
 
     def backward(self):
         if self.index > 0:
             self.index -= 1
-    
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -154,17 +160,20 @@ class Replayer:
                     self.backward()
                 elif event.key == pygame.K_RIGHT:
                     self.forward()
-    
+
     def _draw_board(self):
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
-                pygame.draw.rect(self.screen, 'Black', (70*j + 50, 70*i + 50, 70, 70), 1)
-    
+                pygame.draw.rect(self.screen, 'Black',
+                                 (70*j + 50, 70*i + 50, 70, 70), 1)
+
     def _draw_piece(self, position, value):
-        self.screen.blit(self.pieces[value], (70*position[1] + 50, 70*position[0] + 50))
-    
+        self.screen.blit(self.pieces[value],
+                         (70*position[1] + 50, 70*position[0] + 50))
+
     def _draw_totem(self, position, value):
-        self.screen.blit(self.totems[value], (70*position[1] + 50, 70*position[0] + 50))
+        self.screen.blit(self.totems[value],
+                         (70*position[1] + 50, 70*position[0] + 50))
 
     def _draw_pieces(self):
         state = self.frames[self.index][1]
@@ -177,7 +186,7 @@ class Replayer:
                         self._draw_totem((i, j), 'O')
                     elif (i, j) == state.totem_X:
                         self._draw_totem((i, j), 'X')
-    
+
     def draw(self):
         self.screen.fill('White')
 
@@ -187,15 +196,18 @@ class Replayer:
         frame = self.frames[self.index]
 
         if frame[4] is not None:
-            text = self.win_font.render(f"{'Black' if frame[0] == 1 else 'Pink'} wins!", True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 80))
+            text = self.win_font.render(
+                f"{'Black' if frame[0] == 1 else 'Pink'} wins!", True, 'Black')
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 80))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
 
             reason = "Invalid action" if frame[4] == "invalid" else "Raised Exception"
 
             text = self.number_font.render(reason, True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 110))
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 110))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
         elif Game.is_terminal(frame[1]):
@@ -205,51 +217,62 @@ class Replayer:
             if u0 == u1:
                 text = self.win_font.render("Draw!", True, 'Black')
             else:
-                text = self.win_font.render(f"{'Pink' if u0 > u1 else 'Black'} wins!", True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 100))
+                text = self.win_font.render(
+                    f"{'Pink' if u0 > u1 else 'Black'} wins!", True, 'Black')
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 100))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
         elif frame[2] <= 0:
             text = self.win_font.render(f"Black wins!", True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 80))
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 80))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
 
             reason = "Timeout"
 
             text = self.number_font.render(reason, True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 110))
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 110))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
         elif frame[3] <= 0:
             text = self.win_font.render(f"Pink wins!", True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 80))
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 80))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
 
             reason = "Timeout"
 
             text = self.number_font.render(reason, True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 110))
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 110))
             pygame.draw.rect(self.screen, 'White', text_rect)
             self.screen.blit(text, text_rect)
         else:
-            text = self.number_font.render(f"{'Black' if frame[0] == 1 else 'Pink'} to play", True, 'Black')
-            text_rect = text.get_rect(center=(self.screen.get_width()//2, 70*self.dim[0] + 75))
+            text = self.number_font.render(
+                f"{'Black' if frame[0] == 1 else 'Pink'} to play", True, 'Black')
+            text_rect = text.get_rect(
+                center=(self.screen.get_width()//2, 70*self.dim[0] + 75))
             self.screen.blit(text, text_rect)
-            text = self.number_font.render(f"Pink: {truncate(frame[2], 2)} s", True, 'Black')
+            text = self.number_font.render(
+                f"Pink: {truncate(frame[2], 2)} s", True, 'Black')
             text_rect = text.get_rect(topleft=(50, 70*self.dim[0] + 110))
             self.screen.blit(text, text_rect)
-            text = self.number_font.render(f"Black: {truncate(frame[3], 2)} s", True, 'Black')
+            text = self.number_font.render(
+                f"Black: {truncate(frame[3], 2)} s", True, 'Black')
             text_rect = text.get_rect(topleft=(320, 70*self.dim[0] + 110))
             self.screen.blit(text, text_rect)
-        
-        text = self.number_font.render(f"Turn {self.index+1}/{len(self.steps)+1}", True, 'Black')
+
+        text = self.number_font.render(
+            f"Turn {self.index+1}/{len(self.steps)+1}", True, 'Black')
         text_rect = text.get_rect(topleft=(50, 12))
         self.screen.blit(text, text_rect)
 
         pygame.display.flip()
-    
+
     def play(self):
         while self.running:
             self.handle_events()
@@ -258,6 +281,7 @@ class Replayer:
 
         pygame.quit()
         sys.exit()
+
 
 if __name__ == "__main__":
     """
@@ -282,7 +306,8 @@ if __name__ == "__main__":
         python replayer.py logs/log_0.txt
     """
     parser = argparse.ArgumentParser(description="Replay Oxono game")
-    parser.add_argument("file", type=str, help="Path to the saved log of the game")
+    parser.add_argument(
+        "file", type=str, help="Path to the saved log of the game")
     args = parser.parse_args()
 
     r = Replayer(args.file)

@@ -1,21 +1,24 @@
-from pathlib import Path
+import argparse
 import importlib.util
 import inspect
-import time
 import multiprocessing
-import argparse
+import time
+from pathlib import Path
 
-from oxono import Game, State
 from agent import Agent
+from oxono import Game, State
+
 
 def find_agent_class(filename):
-    spec = importlib.util.spec_from_file_location(Path(filename).stem, filename)
+    spec = importlib.util.spec_from_file_location(
+        Path(filename).stem, filename)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     for name, obj in inspect.getmembers(module, inspect.isclass):
         if issubclass(obj, Agent) and obj is not Agent:
             return obj
     return None
+
 
 def run_agent_process(filename, player, conn):
     agent_class = find_agent_class(filename)
@@ -37,6 +40,7 @@ def run_agent_process(filename, player, conn):
         except EOFError:
             break
 
+
 class AgentProcess:
 
     def __init__(self, agent_file, player):
@@ -55,7 +59,7 @@ class AgentProcess:
             self.kill()
             raise RuntimeError(f"Agent {player} failed to initialize in time")
         self.conn.recv()
-    
+
     def get_action(self, state, remaining_time):
         self.conn.send((state, remaining_time))
 
@@ -72,11 +76,11 @@ class AgentProcess:
             raise RuntimeError(f"Agent {self.player} raised: {value}")
 
         return value, elapsed
-    
+
     def kill(self):
         self.process.kill()
         self.process.join()
-    
+
     def shutdown(self):
         try:
             self.conn.send(None)
@@ -85,6 +89,7 @@ class AgentProcess:
         self.process.join(timeout=2)
         if self.process.is_alive():
             self.kill()
+
 
 class Manager:
     """
@@ -112,7 +117,7 @@ class Manager:
         for agent_file in self.agent_files:
             if find_agent_class(agent_file) is None:
                 raise ValueError(f"No Agent subclass found in {agent_file}.")
-    
+
     def play(self, path_to_file=None):
         """
         Run a single game and return the result.
@@ -153,7 +158,8 @@ class Manager:
                 agent = agent_0 if current == 0 else agent_1
 
                 try:
-                    action, elapsed = agent.get_action(state.copy(), remaining_times[current])
+                    action, elapsed = agent.get_action(
+                        state.copy(), remaining_times[current])
                     remaining_times[current] -= elapsed
                 except TimeoutError:
                     if path:
@@ -168,20 +174,20 @@ class Manager:
                             f.write("exception\n")
                     result = (-1, 1) if current == 0 else (1, -1)
                     break
-                
+
                 if action not in Game.actions(state):
                     if path:
                         with path.open("a", encoding="utf-8") as f:
                             f.write("invalid\n")
-                    result =  (-1, 1) if Game.to_move(state) == 0 else (1, -1)
+                    result = (-1, 1) if Game.to_move(state) == 0 else (1, -1)
                     break
-                
+
                 Game.apply(state, action)
-                
+
                 if path:
                     with path.open("a", encoding="utf-8") as f:
                         f.write(f"{action}, {remaining_times[current]}\n")
-            
+
             if result is None:
                 if remaining_times[0] <= 0:
                     result = (-1, 1)
@@ -189,12 +195,13 @@ class Manager:
                     result = (1, -1)
                 else:
                     result = Game.utility(state, 0), Game.utility(state, 1)
-        
+
         finally:
             agent_0.shutdown()
             agent_1.shutdown()
-        
+
         return result
+
 
 if __name__ == "__main__":
 
@@ -226,12 +233,18 @@ if __name__ == "__main__":
 
     DEFAULT_AGENT = "random_agent.py"
 
-    parser = argparse.ArgumentParser(description="Run Oxono games between two agents")
-    parser.add_argument("-n", type=int, default=1, help="Number of games to run (default: 1)")
-    parser.add_argument("-p0", type=str, default=DEFAULT_AGENT, help="First player file (default: random_agent.py)")
-    parser.add_argument("-p1", type=str, default=DEFAULT_AGENT, help="Second player file (default: random_agent.py)")
-    parser.add_argument("-l", type=str, default=None, metavar="LOG_DIR", help="Log directory (default: no logging)")
-    parser.add_argument("-t", type=int, default=300, help="Time limit for each player (default: 300)")
+    parser = argparse.ArgumentParser(
+        description="Run Oxono games between two agents")
+    parser.add_argument("-n", type=int, default=1,
+                        help="Number of games to run (default: 1)")
+    parser.add_argument("-p0", type=str, default=DEFAULT_AGENT,
+                        help="First player file (default: random_agent.py)")
+    parser.add_argument("-p1", type=str, default=DEFAULT_AGENT,
+                        help="Second player file (default: random_agent.py)")
+    parser.add_argument("-l", type=str, default=None, metavar="LOG_DIR",
+                        help="Log directory (default: no logging)")
+    parser.add_argument("-t", type=int, default=300,
+                        help="Time limit for each player (default: 300)")
     args = parser.parse_args()
 
     manager = Manager(agent_files=[args.p0, args.p1], time_limit=args.t)
@@ -243,20 +256,24 @@ if __name__ == "__main__":
         results[result] = results.get(result, 0) + 1
 
         if i+1 < args.n:
-            wins_p0   = results.get((1, -1), 0)
-            wins_p1   = results.get((-1, 1), 0)
-            draws     = results.get((0, 0), 0)
+            wins_p0 = results.get((1, -1), 0)
+            wins_p1 = results.get((-1, 1), 0)
+            draws = results.get((0, 0), 0)
 
             print(f"\n=== Temporary results over {i+1} game(s) ===")
-            print(f"  {args.p0:<20} wins: {wins_p0:>4}  ({100 * wins_p0 / (i+1):.1f}%)")
-            print(f"  {args.p1:<20} wins: {wins_p1:>4}  ({100 * wins_p1 / (i+1):.1f}%)")
-            print(f"  Draws:                     {draws:>4}  ({100 * draws / (i+1):.1f}%)")
-    
-    wins_p0   = results.get((1, -1), 0)
-    wins_p1   = results.get((-1, 1), 0)
-    draws     = results.get((0, 0), 0)
+            print(
+                f"  {args.p0:<20} wins: {wins_p0:>4}  ({100 * wins_p0 / (i+1):.1f}%)")
+            print(
+                f"  {args.p1:<20} wins: {wins_p1:>4}  ({100 * wins_p1 / (i+1):.1f}%)")
+            print(
+                f"  Draws:                     {draws:>4}  ({100 * draws / (i+1):.1f}%)")
+
+    wins_p0 = results.get((1, -1), 0)
+    wins_p1 = results.get((-1, 1), 0)
+    draws = results.get((0, 0), 0)
 
     print(f"\n=== Results over {args.n} game(s) ===")
     print(f"  {args.p0:<20} wins: {wins_p0:>4}  ({100 * wins_p0 / args.n:.1f}%)")
     print(f"  {args.p1:<20} wins: {wins_p1:>4}  ({100 * wins_p1 / args.n:.1f}%)")
-    print(f"  Draws:                     {draws:>4}  ({100 * draws / args.n:.1f}%)")
+    print(
+        f"  Draws:                     {draws:>4}  ({100 * draws / args.n:.1f}%)")
