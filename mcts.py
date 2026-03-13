@@ -1,9 +1,24 @@
+import random
 import time
 
 import numpy as np
 
 from oxono import Game, State
 from oxononet import OxonoNet, predict, probs_to_dict
+
+
+def generate_zobrist_table():
+    random.seed(42)
+    table = {
+        "pieces": [[[random.getrandbits(64) for _ in range(4)] for _ in range(6)] for _ in range(6)],
+        "totem_O": [[random.getrandbits(64) for _ in range(6)] for _ in range(6)],
+        "totem_X": [[random.getrandbits(64) for _ in range(6)] for _ in range(6)],
+        "player": [random.getrandbits(64) for _ in range(2)]
+    }
+    return table
+
+
+ZOBRIST_TABLE = generate_zobrist_table()
 
 
 class Node:
@@ -36,6 +51,50 @@ class MCTS:
         self.root = Node()
         self.net = net
         self.all_actions = all_actions
+        self.cache = {}
+
+    def compute_zobrist_hash(self, state):
+        h = 0
+        for row in range(6):
+            for col in range(6):
+                piece = state.board[row][col]
+                if piece is not None:
+                    symbol, player = piece
+                    type_idx = (0 if symbol == 'o' else 2) + player
+                    h ^= ZOBRIST_TABLE["pieces"][row][col][type_idx]
+
+        row, col = state.totem_O
+        h ^= ZOBRIST_TABLE["totem_O"][row][col]
+
+        row, col = state.totem_X
+        h ^= ZOBRIST_TABLE["totem_X"][row][col]
+
+        h ^= ZOBRIST_TABLE["player"][state.current_player]
+
+        return h
+
+    def update_root(self, action):
+        if action in self.root.children:
+            self.root = self.root.children[action]
+        else:
+            print(
+                f"Warning: Action {action} not found in MCTS tree. Resetting root.")
+            self.root = Node()
+
+    def get_prediction_with_cache(self, state: State, legal_moves: list):
+        state_hash = self.compute_zobrist_hash(state)
+        if state_hash in self.cache:
+            return self.cache[state_hash]
+
+        probs, values = predict(
+            state,
+            self.net,
+            self.all_actions,
+            legal_moves
+        )
+        self.cache[state_hash] = (probs.cpu().detach().numpy(),
+                                  values.cpu().detach().numpy())
+        return self.cache[state_hash]
 
     def run(self, state: State, time_simulation: int, c_puct: float = 1.5):
         t0 = time.time()
@@ -61,15 +120,11 @@ class MCTS:
                     current_state, current_state.current_player)
             else:
                 legal_moves = list(Game.actions(current_state))
-                probs, values = predict(
+                probs, values = self.get_prediction_with_cache(
                     current_state,
-                    self.net,
-                    self.all_actions,
                     legal_moves
                 )
-
-                probs = probs.cpu().numpy()
-                value = float(values.cpu().numpy()[0])
+                value = float(values[0])
 
                 action_probs = probs_to_dict(
                     probs,
