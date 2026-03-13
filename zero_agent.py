@@ -24,7 +24,7 @@ class ZeroAgent(Agent):
         self.count_moves = 0
 
     def act(self, state: State, remaining_time):
-        time_to_play = remaining_time / (6 * 6 - self.count_moves + 1)
+        time_to_play = remaining_time / 5
 
         mcts = MCTS(self.net, self.all_actions)
         mcts.run(state, time_simulation=time_to_play, c_puct=1.5)
