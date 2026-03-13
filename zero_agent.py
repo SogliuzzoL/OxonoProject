@@ -3,7 +3,7 @@ import os
 import torch
 
 from agent import Agent
-from config import DEVICE, MODEL_PATH
+from config import MODEL_PATH
 from mcts import MCTS
 from oxono import State
 from oxononet import OxonoNet, all_possible_actions
@@ -18,7 +18,7 @@ class ZeroAgent(Agent):
         if os.path.exists(MODEL_PATH):
             self.net.load_state_dict(torch.load(
                 MODEL_PATH,
-                map_location=DEVICE)
+                map_location='cpu')
             )
             self.net.eval()
         self.count_moves = 0

@@ -110,7 +110,7 @@ class OxonoNet(nn.Module):
 
 
 def predict(state: State, net: OxonoNet, all_actions: list, legal_moves: list) -> tuple[torch.Tensor, torch.Tensor]:
-    tensor = state_to_tensor(state).unsqueeze(0).to(DEVICE)
+    tensor = state_to_tensor(state).unsqueeze(0).to('cpu')
 
     with torch.no_grad():
         policy_logits, value = net(tensor)

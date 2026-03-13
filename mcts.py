@@ -48,8 +48,8 @@ class MCTS:
                 current_player = current_state.current_player
                 best_action, best_child = max(
                     node.children.items(),
-                    key=lambda item:
-                    item[1].compute_score(node.visit_count, c_puct)
+                    key=lambda x:
+                    x[1].compute_score(node.visit_count, c_puct)
                 )
                 Game.apply(current_state, best_action)
                 node = best_child
@@ -89,17 +89,20 @@ class MCTS:
                 else:
                     path_node.value -= value
 
+        print(
+            f"MCTS completed {self.root.visit_count} simulations in {time.time() - t0:.2f} seconds")
+
     def get_best_action(self):
         best_action, _ = max(
             self.root.children.items(),
-            key=lambda item: item[1].visit_count
+            key=lambda x: x[1].visit_count
         )
         return best_action
 
     def get_action_probs(self, temperature=1.0):
         if temperature == 0:
             best_action = max(self.root.children.items(),
-                              key=lambda item: item[1].visit_count)[0]
+                              key=lambda x: x[1].visit_count)[0]
             return {action: 1.0 if action == best_action else 0.0
                     for action in self.root.children.keys()}
 
@@ -112,6 +115,6 @@ class MCTS:
                         for action, prob in action_probs.items()}
 
         action_probs = dict(sorted(action_probs.items(),
-                            key=lambda item: item[1], reverse=True))
+                            key=lambda x: x[1], reverse=True))
 
         return action_probs
