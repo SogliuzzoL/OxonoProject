@@ -77,8 +77,6 @@ class MCTS:
         if action in self.root.children:
             self.root = self.root.children[action]
         else:
-            print(
-                f"Warning: Action {action} not found in MCTS tree. Resetting root.")
             self.root = Node()
 
     def get_prediction_with_cache(self, state: State, legal_moves: list):
@@ -143,9 +141,6 @@ class MCTS:
                     path_node.value += value
                 else:
                     path_node.value -= value
-
-        print(
-            f"MCTS completed {self.root.visit_count} simulations in {time.time() - t0:.2f} seconds")
 
     def get_best_action(self):
         best_action, _ = max(
