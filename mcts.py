@@ -96,11 +96,22 @@ class MCTS:
         )
         return best_action
 
-    def get_action_probs(self):
-        action_probs = {action: child.visit_count / self.root.visit_count
+    def get_action_probs(self, temperature=1.0):
+        if temperature == 0:
+            best_action = max(self.root.children.items(),
+                              key=lambda item: item[1].visit_count)[0]
+            return {action: 1.0 if action == best_action else 0.0
+                    for action in self.root.children.keys()}
+
+        action_probs = {action: child.visit_count ** (1 / temperature)
                         for action, child in self.root.children.items()}
 
+        total = sum(action_probs.values())
+
+        action_probs = {action: prob / total
+                        for action, prob in action_probs.items()}
+
         action_probs = dict(sorted(action_probs.items(),
-                                   key=lambda item: item[1], reverse=True))
+                            key=lambda item: item[1], reverse=True))
 
         return action_probs
