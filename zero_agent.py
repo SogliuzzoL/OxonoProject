@@ -5,8 +5,10 @@ import torch
 from agent import Agent
 from config import MODEL_PATH
 from mcts import MCTS
-from oxono import Game, State
+from oxono import State
 from oxononet import OxonoNet, all_possible_actions
+
+DEVICE = "cpu"
 
 
 class ZeroAgent(Agent):
@@ -19,7 +21,7 @@ class ZeroAgent(Agent):
         if os.path.exists(MODEL_PATH):
             self.net.load_state_dict(torch.load(
                 MODEL_PATH,
-                map_location='cpu')
+                map_location=DEVICE)
             )
             self.net.eval()
 
@@ -31,7 +33,8 @@ class ZeroAgent(Agent):
         self.last_totem_X = None
 
     def act(self, state: State, remaining_time):
-        time_to_play = remaining_time / 5
+        time_to_play = remaining_time / \
+            min(max(4 * 8 - self.count_moves, 2), 5)
 
         last_action = state.last_move
         if last_action is not None:
@@ -41,7 +44,11 @@ class ZeroAgent(Agent):
                 last_action = ('X', state.totem_X, state.last_move)
             self.mcts.update_root(last_action)
 
-        self.mcts.run(state, time_simulation=time_to_play, c_puct=1.5)
+        self.mcts.run(state,
+                      time_simulation=time_to_play,
+                      c_puct=1.5,
+                      device=DEVICE
+                      )
         best_action = self.mcts.get_best_action()
 
         self.mcts.update_root(best_action)

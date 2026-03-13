@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from config import DEVICE
-from oxono import Game, State
+from oxono import State
 
 
 def all_possible_actions() -> list[tuple[str, tuple[int, int], tuple[int, int]]]:
@@ -109,9 +109,8 @@ class OxonoNet(nn.Module):
         return policy_logits, value
 
 
-def predict(state: State, net: OxonoNet, all_actions: list, legal_moves: list) -> tuple[torch.Tensor, torch.Tensor]:
-    tensor = state_to_tensor(state).unsqueeze(0).to('cpu')
-
+def predict(state: State, net: OxonoNet, all_actions: list, legal_moves: list, device: str = DEVICE) -> tuple[torch.Tensor, torch.Tensor]:
+    tensor = state_to_tensor(state).unsqueeze(0).to(device)
     with torch.no_grad():
         policy_logits, value = net(tensor)
 

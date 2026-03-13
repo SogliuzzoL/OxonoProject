@@ -3,6 +3,7 @@ import time
 
 import numpy as np
 
+from config import DEVICE
 from oxono import Game, State
 from oxononet import OxonoNet, predict, probs_to_dict
 
@@ -79,7 +80,7 @@ class MCTS:
         else:
             self.root = Node()
 
-    def get_prediction_with_cache(self, state: State, legal_moves: list):
+    def get_prediction_with_cache(self, state: State, legal_moves: list, device=DEVICE):
         state_hash = self.compute_zobrist_hash(state)
         if state_hash in self.cache:
             return self.cache[state_hash]
@@ -88,15 +89,18 @@ class MCTS:
             state,
             self.net,
             self.all_actions,
-            legal_moves
+            legal_moves,
+            device=device
         )
         self.cache[state_hash] = (probs.cpu().detach().numpy(),
                                   values.cpu().detach().numpy())
         return self.cache[state_hash]
 
-    def run(self, state: State, time_simulation: int, c_puct: float = 1.5):
+    def run(self, state: State, time_simulation: int = None, num_simulations: int = 100, c_puct: float = 1.5, device=DEVICE):
         t0 = time.time()
-        while time.time() - t0 < time_simulation:
+        i = 0
+        while time.time() - t0 < time_simulation if time_simulation is not None else i < num_simulations:
+            i += 1
             node = self.root
             current_state = state.copy()
             path = [(node, current_state.current_player)]
@@ -120,7 +124,8 @@ class MCTS:
                 legal_moves = list(Game.actions(current_state))
                 probs, values = self.get_prediction_with_cache(
                     current_state,
-                    legal_moves
+                    legal_moves,
+                    device=device
                 )
                 value = float(values[0])
 
@@ -133,6 +138,7 @@ class MCTS:
                 node.generate_children(action_probs)
 
             current_player = current_state.current_player
+            discount = 0.99
 
             for path_node, player in reversed(path):
                 path_node.visit_count += 1
@@ -141,6 +147,8 @@ class MCTS:
                     path_node.value += value
                 else:
                     path_node.value -= value
+
+                value *= discount
 
     def get_best_action(self):
         best_action, _ = max(
