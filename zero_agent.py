@@ -27,11 +27,8 @@ class ZeroAgent(Agent):
         time_to_play = remaining_time / (6 * 6 - self.count_moves + 1)
 
         mcts = MCTS(self.net, self.all_actions)
-        best_action = mcts.get_best_action(
-            state,
-            time_simulation=time_to_play,
-            c_puct=1.5
-        )
+        mcts.run(state, time_simulation=time_to_play, c_puct=1.5)
+        best_action = mcts.get_best_action()
 
         self.count_moves += 2
         return best_action

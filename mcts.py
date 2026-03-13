@@ -39,9 +39,7 @@ class MCTS:
 
     def run(self, state: State, time_simulation: int, c_puct: float = 1.5):
         t0 = time.time()
-        n = 0
         while time.time() - t0 < time_simulation:
-            n += 1
             node = self.root
             current_state = state.copy()
             path = [(node, current_state.current_player)]
@@ -91,14 +89,18 @@ class MCTS:
                 else:
                     path_node.value -= value
 
-    def get_best_action(self, state: State, time_simulation: float = 5.0, c_puct: float = 1.5):
-        self.run(state, time_simulation, c_puct)
-        if not self.root.children:
-            return None
-
-        best_action = max(
+    def get_best_action(self):
+        best_action, _ = max(
             self.root.children.items(),
             key=lambda item: item[1].visit_count
-        )[0]
-
+        )
         return best_action
+
+    def get_action_probs(self):
+        action_probs = {action: child.visit_count / self.root.visit_count
+                        for action, child in self.root.children.items()}
+
+        action_probs = dict(sorted(action_probs.items(),
+                                   key=lambda item: item[1], reverse=True))
+
+        return action_probs
