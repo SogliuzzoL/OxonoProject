@@ -1,5 +1,8 @@
 import numpy as np
 
+from oxono import State
+from oxononet import OxonoNet
+
 
 class Node:
     def __init__(self, prior=0):
@@ -7,6 +10,7 @@ class Node:
         self.value = 0
         self.visit_count = 0
         self.children = {}
+        self.is_terminal = False
 
     def compute_Q_value(self):
         if self.visit_count == 0:
@@ -24,8 +28,11 @@ class Node:
 
 
 class MCTS:
-    def __init__(self):
+    def __init__(self, net: OxonoNet, all_actions: list, predict_fn: callable):
         self.root = Node()
+        self.net = net
+        self.all_actions = all_actions
+        self.predict_fn = predict_fn
 
     def run(self, state, num_simulations, c_puct=1.5):
         pass

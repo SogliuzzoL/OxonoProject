@@ -73,9 +73,9 @@ class ResidualBlock(nn.Module):
         return F.relu(out)
 
 
-class OptimalOxonoNet(nn.Module):
+class OxonoNet(nn.Module):
     def __init__(self, input_channels, num_actions, num_blocks=10, channels=256):
-        super(OptimalOxonoNet, self).__init__()
+        super(OxonoNet, self).__init__()
 
         self.conv_input = nn.Conv2d(
             input_channels, channels, kernel_size=3, padding=1, bias=False)
@@ -109,9 +109,8 @@ class OptimalOxonoNet(nn.Module):
         return policy_logits, value
 
 
-def predict(state: State, net: OptimalOxonoNet, all_actions: list) -> tuple[torch.Tensor, torch.Tensor]:
+def predict(state: State, net: OxonoNet, all_actions: list, legal_moves: list) -> tuple[torch.Tensor, torch.Tensor]:
     tensor = state_to_tensor(state).unsqueeze(0).to(DEVICE)
-    legal_moves = list(Game.actions(state))
 
     with torch.no_grad():
         policy_logits, value = net(tensor)
@@ -132,16 +131,28 @@ def predict(state: State, net: OptimalOxonoNet, all_actions: list) -> tuple[torc
     return masked_probs.squeeze(0), value.squeeze(0)
 
 
-def probs_to_dict(probs: torch.Tensor, all_actions: list) -> dict:
+def probs_to_dict(probs: torch.Tensor, all_actions: list, legal_moves: list) -> dict[tuple[str, tuple[int, int], tuple[int, int]], float]:
     action_probs = {}
     for idx, prob in enumerate(probs):
-        if prob == 0:
-            continue
         action = all_actions[idx]
-        action_probs[action] = prob.item()
+        if action in legal_moves:
+            action_probs[action] = prob.item()
 
     sorted_action_probs = dict(sorted(action_probs.items(),
                                       key=lambda item: item[1],
                                       reverse=True))
 
     return sorted_action_probs
+
+
+def values_to_dict(value: torch.Tensor, all_actions: list, legal_moves: list) -> dict[str, float]:
+    value_dict = {}
+    for idx, action in enumerate(all_actions):
+        if action in legal_moves:
+            value_dict[action] = value.item()
+
+    sorted_value_dict = dict(sorted(value_dict.items(),
+                                    key=lambda item: item[1],
+                                    reverse=True))
+
+    return sorted_value_dict
