@@ -4,14 +4,9 @@ import torch
 
 from agent import Agent
 from config import DEVICE, MODEL_PATH
-from oxono import Game
-from oxononet import (
-    OxonoNet,
-    all_possible_actions,
-    predict,
-    probs_to_dict,
-    values_to_dict,
-)
+from mcts import MCTS
+from oxono import State
+from oxononet import OxonoNet, all_possible_actions
 
 
 class ZeroAgent(Agent):
@@ -26,13 +21,17 @@ class ZeroAgent(Agent):
                 map_location=DEVICE)
             )
             self.net.eval()
+        self.count_moves = 0
 
-    def act(self, state, remaining_time):
-        legal_moves = list(Game.actions(state))
-        probs, value = predict(state, self.net, self.all_actions, legal_moves)
-        probs = probs.cpu().numpy()
-        value = value.cpu().numpy()
-        action_probs = probs_to_dict(probs, self.all_actions, legal_moves)
-        action_values = values_to_dict(value, self.all_actions, legal_moves)
+    def act(self, state: State, remaining_time):
+        time_to_play = remaining_time / (6 * 6 - self.count_moves + 1)
 
-        return list(action_probs.keys())[0]
+        mcts = MCTS(self.net, self.all_actions)
+        best_action = mcts.get_best_action(
+            state,
+            time_simulation=time_to_play,
+            c_puct=1.5
+        )
+
+        self.count_moves += 2
+        return best_action
