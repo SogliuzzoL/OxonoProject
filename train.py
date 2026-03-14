@@ -69,7 +69,8 @@ def worker_play_game(state_dict, all_actions, num_simulations):
     worker_net.eval()
 
     dataset = play_training_game(
-        worker_net, all_actions, num_simulations=num_simulations)
+        worker_net, all_actions, num_simulations=num_simulations
+    )
 
     safe_dataset = []
     for state_tensor, policy, value in dataset:
@@ -78,18 +79,22 @@ def worker_play_game(state_dict, all_actions, num_simulations):
     return safe_dataset
 
 
-def worker_evaluate_game(best_model_path, new_model_path, all_actions, num_simulations, new_is_p1):
+def worker_evaluate_game(
+    best_model_path, new_model_path, all_actions, num_simulations, new_is_p1
+):
     """Reconstructs both networks in the isolated process by loading them from disk and plays one evaluation game."""
     torch.set_num_threads(1)
 
     best_net = OxonoNet(7, len(all_actions)).to(DEVICE)
-    best_net.load_state_dict(torch.load(
-        best_model_path, map_location=DEVICE, weights_only=True))
+    best_net.load_state_dict(
+        torch.load(best_model_path, map_location=DEVICE, weights_only=True)
+    )
     best_net.eval()
 
     new_net = OxonoNet(7, len(all_actions)).to(DEVICE)
-    new_net.load_state_dict(torch.load(
-        new_model_path, map_location=DEVICE, weights_only=True))
+    new_net.load_state_dict(
+        torch.load(new_model_path, map_location=DEVICE, weights_only=True)
+    )
     new_net.eval()
 
     state = State()
@@ -98,7 +103,7 @@ def worker_evaluate_game(best_model_path, new_model_path, all_actions, num_simul
     move_count = 0
 
     while not Game.is_terminal(state):
-        is_p1_turn = (state.current_player == 1)
+        is_p1_turn = state.current_player == 1
 
         if (is_p1_turn and new_is_p1) or (not is_p1_turn and not new_is_p1):
             active_mcts = mcts_new
@@ -138,12 +143,13 @@ def train_network(net: OxonoNet, dataset: list, epochs: int = 5, batch_size: int
 
     states, target_policies, target_values = zip(*dataset)
 
-    states_t = torch.tensor(
-        np.array(states), dtype=torch.float32).to(DEVICE)
-    policies_t = torch.tensor(
-        np.array(target_policies), dtype=torch.float32).to(DEVICE)
-    values_t = torch.tensor(np.array(target_values),
-                            dtype=torch.float32).unsqueeze(1).to(DEVICE)
+    states_t = torch.tensor(np.array(states), dtype=torch.float32).to(DEVICE)
+    policies_t = torch.tensor(np.array(target_policies), dtype=torch.float32).to(DEVICE)
+    values_t = (
+        torch.tensor(np.array(target_values), dtype=torch.float32)
+        .unsqueeze(1)
+        .to(DEVICE)
+    )
 
     train_data = TensorDataset(states_t, policies_t, values_t)
     dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
@@ -154,14 +160,17 @@ def train_network(net: OxonoNet, dataset: list, epochs: int = 5, batch_size: int
     for epoch in range(epochs):
         total_loss = 0.0
 
-        for batch_states, batch_target_policies, batch_target_values in tqdm(dataloader, desc=f"Training Epoch {epoch+1}/{epochs}", leave=False):
+        for batch_states, batch_target_policies, batch_target_values in tqdm(
+            dataloader, desc=f"Training Epoch {epoch + 1}/{epochs}", leave=False
+        ):
             optimizer.zero_grad()
 
             predicted_policy_logits, predicted_values = net(batch_states)
 
             value_loss = F.mse_loss(predicted_values, batch_target_values)
             policy_loss = F.cross_entropy(
-                predicted_policy_logits, batch_target_policies)
+                predicted_policy_logits, batch_target_policies
+            )
 
             loss = value_loss + policy_loss
             loss.backward()
@@ -170,27 +179,34 @@ def train_network(net: OxonoNet, dataset: list, epochs: int = 5, batch_size: int
             total_loss += loss.item()
 
         print(
-            f"  Epoch {epoch+1} out of {epochs} finished with an average loss of {total_loss / len(dataloader):.4f}.")
+            f"  Epoch {epoch + 1} out of {epochs} finished with an average loss of {total_loss / len(dataloader):.4f}."
+        )
 
     return net
 
 
-def evaluate_nets_parallel(best_model_path, new_model_path, all_actions, num_games=20, num_simulations=400):
+def evaluate_nets_parallel(
+    best_model_path, new_model_path, all_actions, num_games=20, num_simulations=400
+):
     """Evaluates the new network against the best network using parallel processes and disk loading."""
     new_wins = 0
     best_wins = 0
     draws = 0
 
-    eval_arguments = [(best_model_path, new_model_path, all_actions,
-                       num_simulations, i % 2 == 0) for i in range(num_games)]
+    eval_arguments = [
+        (best_model_path, new_model_path, all_actions, num_simulations, i % 2 == 0)
+        for i in range(num_games)
+    ]
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
-        results = executor.map(worker_evaluate_game,
-                               [arg[0] for arg in eval_arguments],
-                               [arg[1] for arg in eval_arguments],
-                               [arg[2] for arg in eval_arguments],
-                               [arg[3] for arg in eval_arguments],
-                               [arg[4] for arg in eval_arguments])
+        results = executor.map(
+            worker_evaluate_game,
+            [arg[0] for arg in eval_arguments],
+            [arg[1] for arg in eval_arguments],
+            [arg[2] for arg in eval_arguments],
+            [arg[3] for arg in eval_arguments],
+            [arg[4] for arg in eval_arguments],
+        )
 
         for result in tqdm(results, total=num_games, desc="Evaluation Tournament"):
             if result == "new":
@@ -204,7 +220,7 @@ def evaluate_nets_parallel(best_model_path, new_model_path, all_actions, num_gam
 
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn', force=True)
+    mp.set_start_method("spawn", force=True)
 
     ITERATIONS = 50
     GAMES_PER_ITERATION = 50
@@ -224,52 +240,59 @@ if __name__ == "__main__":
 
     if os.path.exists(BUFFER_PATH):
         print(f"Loading the replay buffer from the path {BUFFER_PATH}.")
-        with open(BUFFER_PATH, 'rb') as f:
+        with open(BUFFER_PATH, "rb") as f:
             replay_buffer = pickle.load(f)
     else:
         replay_buffer = deque(maxlen=MAX_BUFFER_SIZE)
 
     for iteration in range(ITERATIONS):
-        print(
-            f"\nStarting AlphaZero iteration {iteration + 1} out of {ITERATIONS}.")
+        print(f"\nStarting AlphaZero iteration {iteration + 1} out of {ITERATIONS}.")
 
         best_net.eval()
         iteration_data = []
 
         print("We are now generating games through parallel self play, please wait.")
 
-        current_state_dict = {k: v.cpu()
-                              for k, v in best_net.state_dict().items()}
-        games_arguments = [(current_state_dict, all_actions, SIMULATIONS_MCTS)
-                           for _ in range(GAMES_PER_ITERATION)]
+        current_state_dict = {k: v.cpu() for k, v in best_net.state_dict().items()}
+        games_arguments = [
+            (current_state_dict, all_actions, SIMULATIONS_MCTS)
+            for _ in range(GAMES_PER_ITERATION)
+        ]
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
-            results = executor.map(worker_play_game,
-                                   [arg[0] for arg in games_arguments],
-                                   [arg[1] for arg in games_arguments],
-                                   [arg[2] for arg in games_arguments])
+            results = executor.map(
+                worker_play_game,
+                [arg[0] for arg in games_arguments],
+                [arg[1] for arg in games_arguments],
+                [arg[2] for arg in games_arguments],
+            )
 
-            for completed_game in tqdm(results, total=GAMES_PER_ITERATION, desc="Self Play Generation"):
+            for completed_game in tqdm(
+                results, total=GAMES_PER_ITERATION, desc="Self Play Generation"
+            ):
                 iteration_data.extend(completed_game)
 
         print(
-            f"  All {GAMES_PER_ITERATION} games have been successfully generated in parallel.")
+            f"  All {GAMES_PER_ITERATION} games have been successfully generated in parallel."
+        )
 
         replay_buffer.extend(iteration_data)
 
-        with open(BUFFER_PATH, 'wb') as f:
+        with open(BUFFER_PATH, "wb") as f:
             pickle.dump(replay_buffer, f)
         print(
-            f"  The replay buffer has been successfully saved with {len(replay_buffer)} states.")
+            f"  The replay buffer has been successfully saved with {len(replay_buffer)} states."
+        )
 
         print(
-            f"\nThe generation is done. We are moving on to training the candidate model with a replay buffer of {len(replay_buffer)} states.")
+            f"\nThe generation is done. We are moving on to training the candidate model with a replay buffer of {len(replay_buffer)} states."
+        )
         new_net = copy.deepcopy(best_net)
-        train_network(new_net, list(replay_buffer),
-                      epochs=10, batch_size=BATCH_SIZE)
+        train_network(new_net, list(replay_buffer), epochs=10, batch_size=BATCH_SIZE)
 
         print(
-            f"\nTraining is complete. Let us start the comparative evaluation tournament over {EVALUATION_GAMES} games.")
+            f"\nTraining is complete. Let us start the comparative evaluation tournament over {EVALUATION_GAMES} games."
+        )
 
         temp_best_path = "temp_best.pth"
         temp_new_path = "temp_new.pth"
@@ -278,7 +301,12 @@ if __name__ == "__main__":
         torch.save(new_net.state_dict(), temp_new_path)
 
         new_wins, best_wins, draws = evaluate_nets_parallel(
-            temp_best_path, temp_new_path, all_actions, num_games=EVALUATION_GAMES, num_simulations=SIMULATIONS_MCTS)
+            temp_best_path,
+            temp_new_path,
+            all_actions,
+            num_games=EVALUATION_GAMES,
+            num_simulations=SIMULATIONS_MCTS,
+        )
 
         if os.path.exists(temp_best_path):
             os.remove(temp_best_path)
@@ -286,7 +314,8 @@ if __name__ == "__main__":
             os.remove(temp_new_path)
 
         print(
-            f"  The tournament is over. The candidate model secured {new_wins} wins, the reference model took {best_wins} wins, and there were {draws} draws.")
+            f"  The tournament is over. The candidate model secured {new_wins} wins, the reference model took {best_wins} wins, and there were {draws} draws."
+        )
 
         total_decisive_games = new_wins + best_wins
         if total_decisive_games > 0:
@@ -295,13 +324,17 @@ if __name__ == "__main__":
             win_rate = 0.0
 
         print(
-            f"\nLet us look at the validation, the candidate model achieved a win rate of {win_rate*100:.1f}%.")
+            f"\nLet us look at the validation, the candidate model achieved a win rate of {win_rate * 100:.1f}%."
+        )
 
         if win_rate >= WIN_RATE_THRESHOLD:
-            print(f"  The candidate model has passed the acceptance threshold, so we are updating the reference model.")
+            print(
+                f"  The candidate model has passed the acceptance threshold, so we are updating the reference model."
+            )
             best_net = new_net
             torch.save(best_net.state_dict(), MODEL_PATH)
-            print(
-                f"  The new model has been successfully saved to {MODEL_PATH}.")
+            print(f"  The new model has been successfully saved to {MODEL_PATH}.")
         else:
-            print(f"  The candidate model did not perform well enough, meaning the reference model will be retained for the next iteration.")
+            print(
+                f"  The candidate model did not perform well enough, meaning the reference model will be retained for the next iteration."
+            )

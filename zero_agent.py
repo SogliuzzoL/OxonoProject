@@ -19,10 +19,7 @@ class ZeroAgent(Agent):
         self.input_channels = 7
         self.net = OxonoNet(self.input_channels, len(self.all_actions))
         if os.path.exists(MODEL_PATH):
-            self.net.load_state_dict(torch.load(
-                MODEL_PATH,
-                map_location=DEVICE)
-            )
+            self.net.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
             self.net.eval()
 
         self.mcts = MCTS(self.net, self.all_actions)
@@ -33,28 +30,23 @@ class ZeroAgent(Agent):
         self.last_totem_X = None
 
     def act(self, state: State, remaining_time):
-        time_to_play = remaining_time / \
-            min(max(4 * 8 - self.count_moves, 2), 5)
+        time_to_play = remaining_time / min(max(4 * 8 - self.count_moves, 2), 5)
 
         last_action = state.last_move
         if last_action is not None:
             if state.totem_O != self.last_totem_O:
-                last_action = ('O', state.totem_O, state.last_move)
+                last_action = ("O", state.totem_O, state.last_move)
             else:
-                last_action = ('X', state.totem_X, state.last_move)
+                last_action = ("X", state.totem_X, state.last_move)
             self.mcts.update_root(last_action)
 
-        self.mcts.run(state,
-                      time_simulation=time_to_play,
-                      c_puct=1.5,
-                      device=DEVICE
-                      )
+        self.mcts.run(state, time_simulation=time_to_play, c_puct=1.5, device=DEVICE)
         best_action = self.mcts.get_best_action()
 
         self.mcts.update_root(best_action)
 
-        self.last_totem_O = state.totem_O if best_action[0] != 'O' else best_action[1]
-        self.last_totem_X = state.totem_X if best_action[0] != 'X' else best_action[1]
+        self.last_totem_O = state.totem_O if best_action[0] != "O" else best_action[1]
+        self.last_totem_X = state.totem_X if best_action[0] != "X" else best_action[1]
 
         self.count_moves += 2
 

@@ -27,21 +27,18 @@ class State:
         Position (row, col) of the last piece placed on the board, or None if no
         piece has been placed yet. Used to efficiently check win conditions.
     """
+
     board: list[list[tuple[str, int] | None]] = field(
         default_factory=lambda: [[None for _ in range(6)] for _ in range(6)]
     )
     totem_O: tuple[int, int] = (2, 2)
     totem_X: tuple[int, int] = (3, 3)
     current_player: int = 0
-    pieces_x: list[int] = field(
-        default_factory=lambda: [8, 8]
-    )
-    pieces_o: list[int, int] = field(
-        default_factory=lambda: [8, 8]
-    )
+    pieces_x: list[int] = field(default_factory=lambda: [8, 8])
+    pieces_o: list[int, int] = field(default_factory=lambda: [8, 8])
     last_move: tuple[int, int] | None = None
 
-    def copy(self) -> 'State':
+    def copy(self) -> "State":
         """
         Return a deep copy of this state.
 
@@ -55,7 +52,15 @@ class State:
             An independent copy of this state.
         """
         new_board = [row[:] for row in self.board]
-        return State(new_board, self.totem_O, self.totem_X, self.current_player, self.pieces_x[:], self.pieces_o[:], self.last_move)
+        return State(
+            new_board,
+            self.totem_O,
+            self.totem_X,
+            self.current_player,
+            self.pieces_x[:],
+            self.pieces_o[:],
+            self.last_move,
+        )
 
 
 class Game:
@@ -116,16 +121,18 @@ class Game:
         totem_actions = []
         board = state.board
 
-        r, c = state.totem_O if totem == 'O' else state.totem_X
-        other_totem = state.totem_X if totem == 'O' else state.totem_O
+        r, c = state.totem_O if totem == "O" else state.totem_X
+        other_totem = state.totem_X if totem == "O" else state.totem_O
 
         movable = False
         for dr, dc in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
             for i in range(1, 6):
-                nr, nc = r + i*dr, c + i*dc
+                nr, nc = r + i * dr, c + i * dc
                 if not ((0 <= nr < 6) and (0 <= nc < 6)):  # If outside of board
                     break
-                if (board[nr][nc] is not None) or ((nr, nc) == other_totem):  # If not free
+                if (board[nr][nc] is not None) or (
+                    (nr, nc) == other_totem
+                ):  # If not free
                     break
                 # We can move the totem to (nr, nc)
                 movable = movable or True
@@ -133,10 +140,12 @@ class Game:
         if not movable:  # Cannot move freely in one direction
             for dr, dc in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
                 for i in range(1, 6):
-                    nr, nc = r + i*dr, c + i*dc
+                    nr, nc = r + i * dr, c + i * dc
                     if not ((0 <= nr < 6) and (0 <= nc < 6)):  # If outside of board
                         break
-                    if (board[nr][nc] is not None) or ((nr, nc) == other_totem):  # If not free
+                    if (board[nr][nc] is not None) or (
+                        (nr, nc) == other_totem
+                    ):  # If not free
                         continue
                     # We finaly found a free spot
                     totem_actions.append((nr, nc))
@@ -146,7 +155,11 @@ class Game:
                 for nr in range(0, 6):
                     for nc in range(0, 6):
                         # If not free
-                        if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:
+                        if (
+                            (board[nr][nc] is not None)
+                            or (nr, nc) == (r, c)
+                            or (nr, nc) == other_totem
+                        ):
                             continue
                         movable = True
                         totem_actions.append((nr, nc))
@@ -178,46 +191,60 @@ class Game:
         board = state.board
 
         # Totem O
-        if (state.pieces_o[state.current_player] > 0):
+        if state.pieces_o[state.current_player] > 0:
             other_totem = state.totem_X
-            for r, c in Game._totems_actions(state, 'O'):
+            for r, c in Game._totems_actions(state, "O"):
                 placable = False
                 for dr, dc in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
                     nr, nc = r + dr, c + dc
                     if not ((0 <= nr < 6) and (0 <= nc < 6)):  # If outside
                         continue
-                    if (board[nr][nc] is not None) or (nr, nc) == other_totem:  # If not free
+                    if (board[nr][nc] is not None) or (
+                        nr,
+                        nc,
+                    ) == other_totem:  # If not free
                         continue
                     placable = placable or True
-                    all_actions.append(('O', (r, c), (nr, nc)))
+                    all_actions.append(("O", (r, c), (nr, nc)))
                 if not placable:
                     for nr in range(0, 6):
                         for nc in range(0, 6):
                             # If not free
-                            if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:
+                            if (
+                                (board[nr][nc] is not None)
+                                or (nr, nc) == (r, c)
+                                or (nr, nc) == other_totem
+                            ):
                                 continue
-                            all_actions.append(('O', (r, c), (nr, nc)))
+                            all_actions.append(("O", (r, c), (nr, nc)))
 
         # Totem X
-        if (state.pieces_x[state.current_player] > 0):
+        if state.pieces_x[state.current_player] > 0:
             other_totem = state.totem_O
-            for r, c in Game._totems_actions(state, 'X'):
+            for r, c in Game._totems_actions(state, "X"):
                 placable = False
                 for dr, dc in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
                     nr, nc = r + dr, c + dc
                     if not ((0 <= nr < 6) and (0 <= nc < 6)):  # If outside
                         continue
-                    if (board[nr][nc] is not None) or (nr, nc) == other_totem:  # If not free
+                    if (board[nr][nc] is not None) or (
+                        nr,
+                        nc,
+                    ) == other_totem:  # If not free
                         continue
                     placable = placable or True
-                    all_actions.append(('X', (r, c), (nr, nc)))
+                    all_actions.append(("X", (r, c), (nr, nc)))
                 if not placable:
                     for nr in range(0, 6):
                         for nc in range(0, 6):
                             # If not free
-                            if (board[nr][nc] is not None) or (nr, nc) == (r, c) or (nr, nc) == other_totem:
+                            if (
+                                (board[nr][nc] is not None)
+                                or (nr, nc) == (r, c)
+                                or (nr, nc) == other_totem
+                            ):
                                 continue
-                            all_actions.append(('X', (r, c), (nr, nc)))
+                            all_actions.append(("X", (r, c), (nr, nc)))
 
         return all_actions
 
@@ -239,21 +266,26 @@ class Game:
             The action to apply, of the form (totem, totem_pos, piece_pos).
         """
         totem, totem_pos, piece_pos = action
-        if totem == 'O':
+        if totem == "O":
             state.totem_O = totem_pos
         else:
             state.totem_X = totem_pos
         state.board[piece_pos[0]][piece_pos[1]] = (
-            'o' if totem == 'O' else 'x', state.current_player)
+            "o" if totem == "O" else "x",
+            state.current_player,
+        )
 
-        if totem == 'O':
+        if totem == "O":
             state.pieces_o[state.current_player] -= 1
         else:
             state.pieces_x[state.current_player] -= 1
 
         state.last_move = piece_pos
 
-        if state.pieces_o[1 - state.current_player] > 0 or state.pieces_x[1 - state.current_player] > 0:
+        if (
+            state.pieces_o[1 - state.current_player] > 0
+            or state.pieces_x[1 - state.current_player] > 0
+        ):
             state.current_player = 1 - state.current_player
 
     @staticmethod
@@ -285,14 +317,13 @@ class Game:
         symbol, color = cell
 
         for dr, dc in [(1, 0), (0, 1)]:
-
             count_symbol = 1
             count_color = 1
 
             valid_symbol = True
             valid_color = True
             for i in range(1, 4):
-                nr, nc = r + i*dr, c + i*dc
+                nr, nc = r + i * dr, c + i * dc
                 if 0 <= nr < 6 and 0 <= nc < 6 and board[nr][nc]:
                     sym, col = board[nr][nc]
                     if sym == symbol and valid_symbol:
@@ -313,7 +344,7 @@ class Game:
             valid_symbol = True
             valid_color = True
             for i in range(1, 4):
-                nr, nc = r + -i*dr, c + -i*dc
+                nr, nc = r + -i * dr, c + -i * dc
                 if 0 <= nr < 6 and 0 <= nc < 6 and board[nr][nc]:
                     sym, col = board[nr][nc]
                     if sym == symbol and valid_symbol:

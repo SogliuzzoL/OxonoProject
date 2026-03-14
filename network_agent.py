@@ -16,20 +16,12 @@ class NetworkAgent(Agent):
         self.input_channels = 7
         self.net = OxonoNet(self.input_channels, len(self.all_actions))
         if os.path.exists(MODEL_PATH):
-            self.net.load_state_dict(torch.load(
-                MODEL_PATH,
-                map_location=DEVICE)
-            )
+            self.net.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
             self.net.eval()
 
     def act(self, state: State, remaining_time):
         legal_actions = list(Game.actions(state))
-        probs, values = predict(
-            state,
-            self.net,
-            self.all_actions,
-            legal_actions
-        )
+        probs, values = predict(state, self.net, self.all_actions, legal_actions)
         action_probs = probs_to_dict(probs, self.all_actions, legal_actions)
         print(f"Action probabilities: {action_probs}")
         best_action = max(action_probs, key=action_probs.get)

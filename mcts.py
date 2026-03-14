@@ -11,10 +11,13 @@ from oxononet import OxonoNet, predict, probs_to_dict
 def generate_zobrist_table():
     random.seed(42)
     table = {
-        "pieces": [[[random.getrandbits(64) for _ in range(4)] for _ in range(6)] for _ in range(6)],
+        "pieces": [
+            [[random.getrandbits(64) for _ in range(4)] for _ in range(6)]
+            for _ in range(6)
+        ],
         "totem_O": [[random.getrandbits(64) for _ in range(6)] for _ in range(6)],
         "totem_X": [[random.getrandbits(64) for _ in range(6)] for _ in range(6)],
-        "player": [random.getrandbits(64) for _ in range(2)]
+        "player": [random.getrandbits(64) for _ in range(2)],
     }
     return table
 
@@ -36,7 +39,9 @@ class Node:
         return self.value / self.visit_count
 
     def compute_U_value(self, parent_visit_count, c_puct=1.5):
-        return c_puct * self.prior * np.sqrt(parent_visit_count) / (1 + self.visit_count)
+        return (
+            c_puct * self.prior * np.sqrt(parent_visit_count) / (1 + self.visit_count)
+        )
 
     def compute_score(self, parent_visit_count, c_puct=1.5):
         return self.compute_Q_value() + self.compute_U_value(parent_visit_count, c_puct)
@@ -61,7 +66,7 @@ class MCTS:
                 piece = state.board[row][col]
                 if piece is not None:
                     symbol, player = piece
-                    type_idx = (0 if symbol == 'o' else 2) + player
+                    type_idx = (0 if symbol == "o" else 2) + player
                     h ^= ZOBRIST_TABLE["pieces"][row][col][type_idx]
 
         row, col = state.totem_O
@@ -86,20 +91,29 @@ class MCTS:
             return self.cache[state_hash]
 
         probs, values = predict(
-            state,
-            self.net,
-            self.all_actions,
-            legal_moves,
-            device=device
+            state, self.net, self.all_actions, legal_moves, device=device
         )
-        self.cache[state_hash] = (probs.cpu().detach().numpy(),
-                                  values.cpu().detach().numpy())
+        self.cache[state_hash] = (
+            probs.cpu().detach().numpy(),
+            values.cpu().detach().numpy(),
+        )
         return self.cache[state_hash]
 
-    def run(self, state: State, time_simulation: int = None, num_simulations: int = 100, c_puct: float = 1.5, device=DEVICE):
+    def run(
+        self,
+        state: State,
+        time_simulation: int | None = None,
+        num_simulations: int = 100,
+        c_puct: float = 1.5,
+        device=DEVICE,
+    ):
         t0 = time.time()
         i = 0
-        while time.time() - t0 < time_simulation if time_simulation is not None else i < num_simulations:
+        while (
+            time.time() - t0 < time_simulation
+            if time_simulation is not None
+            else i < num_simulations
+        ):
             i += 1
             node = self.root
             current_state = state.copy()
@@ -109,8 +123,7 @@ class MCTS:
                 current_player = current_state.current_player
                 best_action, best_child = max(
                     node.children.items(),
-                    key=lambda x:
-                    x[1].compute_score(node.visit_count, c_puct)
+                    key=lambda x: x[1].compute_score(node.visit_count, c_puct),
                 )
                 Game.apply(current_state, best_action)
                 node = best_child
@@ -118,22 +131,15 @@ class MCTS:
 
             if Game.is_terminal(current_state):
                 node.is_terminal = True
-                value = Game.utility(
-                    current_state, current_state.current_player)
+                value = Game.utility(current_state, current_state.current_player)
             else:
                 legal_moves = list(Game.actions(current_state))
                 probs, values = self.get_prediction_with_cache(
-                    current_state,
-                    legal_moves,
-                    device=device
+                    current_state, legal_moves, device=device
                 )
                 value = float(values[0])
 
-                action_probs = probs_to_dict(
-                    probs,
-                    self.all_actions,
-                    legal_moves
-                )
+                action_probs = probs_to_dict(probs, self.all_actions, legal_moves)
 
                 node.generate_children(action_probs)
 
@@ -151,28 +157,30 @@ class MCTS:
                 value *= discount
 
     def get_best_action(self):
-        best_action, _ = max(
-            self.root.children.items(),
-            key=lambda x: x[1].visit_count
-        )
+        best_action, _ = max(self.root.children.items(), key=lambda x: x[1].visit_count)
         return best_action
 
     def get_action_probs(self, temperature=1.0):
         if temperature == 0:
-            best_action = max(self.root.children.items(),
-                              key=lambda x: x[1].visit_count)[0]
-            return {action: 1.0 if action == best_action else 0.0
-                    for action in self.root.children.keys()}
+            best_action = max(
+                self.root.children.items(), key=lambda x: x[1].visit_count
+            )[0]
+            return {
+                action: 1.0 if action == best_action else 0.0
+                for action in self.root.children.keys()
+            }
 
-        action_probs = {action: child.visit_count ** (1 / temperature)
-                        for action, child in self.root.children.items()}
+        action_probs = {
+            action: child.visit_count ** (1 / temperature)
+            for action, child in self.root.children.items()
+        }
 
         total = sum(action_probs.values())
 
-        action_probs = {action: prob / total
-                        for action, prob in action_probs.items()}
+        action_probs = {action: prob / total for action, prob in action_probs.items()}
 
-        action_probs = dict(sorted(action_probs.items(),
-                            key=lambda x: x[1], reverse=True))
+        action_probs = dict(
+            sorted(action_probs.items(), key=lambda x: x[1], reverse=True)
+        )
 
         return action_probs

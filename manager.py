@@ -10,8 +10,7 @@ from oxono import Game, State
 
 
 def find_agent_class(filename):
-    spec = importlib.util.spec_from_file_location(
-        Path(filename).stem, filename)
+    spec = importlib.util.spec_from_file_location(Path(filename).stem, filename)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     for name, obj in inspect.getmembers(module, inspect.isclass):
@@ -42,15 +41,12 @@ def run_agent_process(filename, player, conn):
 
 
 class AgentProcess:
-
     def __init__(self, agent_file, player):
         parent_conn, child_conn = multiprocessing.Pipe()
         self.conn = parent_conn
         self.player = player
         self.process = multiprocessing.Process(
-            target=run_agent_process,
-            args=(agent_file, player, child_conn),
-            daemon=True
+            target=run_agent_process, args=(agent_file, player, child_conn), daemon=True
         )
         self.process.start()
         child_conn.close()
@@ -159,7 +155,8 @@ class Manager:
 
                 try:
                     action, elapsed = agent.get_action(
-                        state.copy(), remaining_times[current])
+                        state.copy(), remaining_times[current]
+                    )
                     remaining_times[current] -= elapsed
                 except TimeoutError:
                     if path:
@@ -204,7 +201,6 @@ class Manager:
 
 
 if __name__ == "__main__":
-
     """
     Run one or more Oxono games from the command line and print aggregated results.
 
@@ -233,18 +229,32 @@ if __name__ == "__main__":
 
     DEFAULT_AGENT = "random_agent.py"
 
-    parser = argparse.ArgumentParser(
-        description="Run Oxono games between two agents")
-    parser.add_argument("-n", type=int, default=1,
-                        help="Number of games to run (default: 1)")
-    parser.add_argument("-p0", type=str, default=DEFAULT_AGENT,
-                        help="First player file (default: random_agent.py)")
-    parser.add_argument("-p1", type=str, default=DEFAULT_AGENT,
-                        help="Second player file (default: random_agent.py)")
-    parser.add_argument("-l", type=str, default=None, metavar="LOG_DIR",
-                        help="Log directory (default: no logging)")
-    parser.add_argument("-t", type=int, default=300,
-                        help="Time limit for each player (default: 300)")
+    parser = argparse.ArgumentParser(description="Run Oxono games between two agents")
+    parser.add_argument(
+        "-n", type=int, default=1, help="Number of games to run (default: 1)"
+    )
+    parser.add_argument(
+        "-p0",
+        type=str,
+        default=DEFAULT_AGENT,
+        help="First player file (default: random_agent.py)",
+    )
+    parser.add_argument(
+        "-p1",
+        type=str,
+        default=DEFAULT_AGENT,
+        help="Second player file (default: random_agent.py)",
+    )
+    parser.add_argument(
+        "-l",
+        type=str,
+        default=None,
+        metavar="LOG_DIR",
+        help="Log directory (default: no logging)",
+    )
+    parser.add_argument(
+        "-t", type=int, default=300, help="Time limit for each player (default: 300)"
+    )
     args = parser.parse_args()
 
     manager = Manager(agent_files=[args.p0, args.p1], time_limit=args.t)
@@ -255,18 +265,21 @@ if __name__ == "__main__":
         result = manager.play(path_to_file=log_path)
         results[result] = results.get(result, 0) + 1
 
-        if i+1 < args.n:
+        if i + 1 < args.n:
             wins_p0 = results.get((1, -1), 0)
             wins_p1 = results.get((-1, 1), 0)
             draws = results.get((0, 0), 0)
 
-            print(f"\n=== Temporary results over {i+1} game(s) ===")
+            print(f"\n=== Temporary results over {i + 1} game(s) ===")
             print(
-                f"  {args.p0:<20} wins: {wins_p0:>4}  ({100 * wins_p0 / (i+1):.1f}%)")
+                f"  {args.p0:<20} wins: {wins_p0:>4}  ({100 * wins_p0 / (i + 1):.1f}%)"
+            )
             print(
-                f"  {args.p1:<20} wins: {wins_p1:>4}  ({100 * wins_p1 / (i+1):.1f}%)")
+                f"  {args.p1:<20} wins: {wins_p1:>4}  ({100 * wins_p1 / (i + 1):.1f}%)"
+            )
             print(
-                f"  Draws:                     {draws:>4}  ({100 * draws / (i+1):.1f}%)")
+                f"  Draws:                     {draws:>4}  ({100 * draws / (i + 1):.1f}%)"
+            )
 
     wins_p0 = results.get((1, -1), 0)
     wins_p1 = results.get((-1, 1), 0)
@@ -275,5 +288,4 @@ if __name__ == "__main__":
     print(f"\n=== Results over {args.n} game(s) ===")
     print(f"  {args.p0:<20} wins: {wins_p0:>4}  ({100 * wins_p0 / args.n:.1f}%)")
     print(f"  {args.p1:<20} wins: {wins_p1:>4}  ({100 * wins_p1 / args.n:.1f}%)")
-    print(
-        f"  Draws:                     {draws:>4}  ({100 * draws / args.n:.1f}%)")
+    print(f"  Draws:                     {draws:>4}  ({100 * draws / args.n:.1f}%)")
