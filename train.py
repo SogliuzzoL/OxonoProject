@@ -49,11 +49,11 @@ class AlphaZeroConfig:
     win_rate_threshold: float = 0.55
     max_buffer_size: int = 100_000
     mcts_simulations: int = 400
-    batch_size: int = 2048
+    batch_size: int = 512
+    num_workers: int = 64
     epochs_per_iteration: int = 5
     learning_rate: float = 0.001
     weight_decay: float = 1e-4
-    num_workers: int = 32
 
 
 class RemoteNet:
