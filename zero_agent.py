@@ -40,7 +40,7 @@ class ZeroAgent(Agent):
                 last_action = ("X", state.totem_X, state.last_move)
             self.mcts.update_root(last_action)
 
-        self.mcts.run(state, time_simulation=time_to_play, c_puct=1.5, device=DEVICE)
+        self.mcts.run(state, num_simulations=1000, c_puct=1.5, device=DEVICE)
         best_action = self.mcts.get_best_action()
 
         self.mcts.update_root(best_action)
