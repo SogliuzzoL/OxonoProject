@@ -54,6 +54,7 @@ class AlphaZeroConfig:
     epochs_per_iteration: int = 5
     learning_rate: float = 0.001
     weight_decay: float = 1e-4
+    tournament: bool = False
 
 
 class RemoteNet:
@@ -155,7 +156,7 @@ def execute_self_play_episode(
     round_count = 0
 
     while not Game.is_terminal(state):
-        temperature = 1.0 if round_count < 20 else 0.1
+        temperature = 2.0 if round_count < 20 else 0.1
 
         mcts.run(state, num_simulations=num_simulations, device=device)
         action_probs = mcts.get_action_probs(temperature)
@@ -483,39 +484,50 @@ def main():
         new_net = copy.deepcopy(best_net)
         train_neural_network(new_net, list(replay_buffer), config)
 
-        logger.info("Training complete, initiating comparative evaluation tournament.")
+        if config.tournament:
+            logger.info(
+                "Training complete, initiating comparative evaluation tournament."
+            )
 
-        temp_best_path = "temp_best.pth"
-        temp_new_path = "temp_new.pth"
+            temp_best_path = "temp_best.pth"
+            temp_new_path = "temp_new.pth"
 
-        torch.save(best_net.state_dict(), temp_best_path)
-        torch.save(new_net.state_dict(), temp_new_path)
+            torch.save(best_net.state_dict(), temp_best_path)
+            torch.save(new_net.state_dict(), temp_new_path)
 
-        new_wins, best_wins, draws = conduct_evaluation_tournament(
-            temp_best_path, temp_new_path, all_actions, config
-        )
+            new_wins, best_wins, draws = conduct_evaluation_tournament(
+                temp_best_path, temp_new_path, all_actions, config
+            )
 
-        for path in (temp_best_path, temp_new_path):
-            if os.path.exists(path):
-                os.remove(path)
+            for path in (temp_best_path, temp_new_path):
+                if os.path.exists(path):
+                    os.remove(path)
 
-        logger.info(
-            f"Tournament finished, Candidate: {new_wins} wins, Reference: {best_wins} wins, Draws: {draws}."
-        )
+            logger.info(
+                f"Tournament finished, Candidate: {new_wins} wins, Reference: {best_wins} wins, Draws: {draws}."
+            )
 
-        total_decisive_games = new_wins + best_wins
-        win_rate = (
-            (new_wins / total_decisive_games) if total_decisive_games > 0 else 0.0
-        )
+            total_decisive_games = new_wins + best_wins
+            win_rate = (
+                (new_wins / total_decisive_games) if total_decisive_games > 0 else 0.0
+            )
 
-        logger.info(f"Candidate model win rate established at {win_rate * 100:.1f}%.")
+            logger.info(
+                f"Candidate model win rate established at {win_rate * 100:.1f}%."
+            )
 
-        if win_rate >= config.win_rate_threshold:
-            logger.info("Candidate model accepted, updating reference model.")
+            if win_rate >= config.win_rate_threshold:
+                logger.info("Candidate model accepted, updating reference model.")
+                best_net = new_net
+                torch.save(best_net.state_dict(), MODEL_PATH)
+            else:
+                logger.info("Candidate model rejected, retaining reference model.")
+        else:
+            logger.info(
+                "Tournament phase skipped, directly updating reference model with candidate."
+            )
             best_net = new_net
             torch.save(best_net.state_dict(), MODEL_PATH)
-        else:
-            logger.info("Candidate model rejected, retaining reference model.")
 
 
 if __name__ == "__main__":

@@ -107,6 +107,9 @@ class MCTS:
         c_puct: float = 1.5,
         device=DEVICE,
     ):
+        self.terminal_hits = 0
+        self.simulations_done = 0
+
         t0 = time.time()
         i = 0
         while (
@@ -115,6 +118,7 @@ class MCTS:
             else i < num_simulations
         ):
             i += 1
+            self.simulations_done += 1
             node = self.root
             current_state = state.copy()
             path = [(node, current_state.current_player)]
@@ -131,6 +135,7 @@ class MCTS:
 
             if Game.is_terminal(current_state):
                 node.is_terminal = True
+                self.terminal_hits += 1
                 value = Game.utility(current_state, current_state.current_player)
             else:
                 legal_moves = list(Game.actions(current_state))
@@ -144,7 +149,7 @@ class MCTS:
                 node.generate_children(action_probs)
 
             current_player = current_state.current_player
-            discount = 0.99
+            discount = 0.5
 
             for path_node, player in reversed(path):
                 path_node.visit_count += 1
@@ -184,3 +189,27 @@ class MCTS:
         )
 
         return action_probs
+
+    def check_sensors(self) -> bool:
+        if self.root.visit_count == 0:
+            return False
+
+        q_value = self.root.compute_Q_value()
+        certainty_triggered = abs(q_value) > 0.90
+
+        terminal_ratio = self.terminal_hits / max(
+            1, getattr(self, "simulations_done", 1)
+        )
+        horizon_triggered = terminal_ratio > 0.45
+
+        max_child_visits = max(
+            [child.visit_count for child in self.root.children.values()], default=0
+        )
+        monopoly_ratio = max_child_visits / self.root.visit_count
+        monopoly_triggered = monopoly_ratio > 0.85
+
+        print(
+            f"Q-value: {q_value:.2f}, Terminal Ratio: {terminal_ratio:.2f}, Monopoly Ratio: {monopoly_ratio:.2f}"
+        )
+
+        return certainty_triggered or horizon_triggered or monopoly_triggered
