@@ -2,6 +2,7 @@ import random
 import time
 
 import numpy as np
+from graphviz import Digraph
 
 from config import DEVICE
 from oxono import Game, State
@@ -25,6 +26,41 @@ def generate_zobrist_table():
 ZOBRIST_TABLE = generate_zobrist_table()
 
 
+def export_mcts_to_graph(mcts, filename="mcts_tree", max_nodes=5000):
+    dot = Digraph(comment="MCTS Tree")
+    nodes_count = 0
+
+    def add_nodes(node, action_name="Root", parent_id=None):
+        nonlocal nodes_count
+        if nodes_count > max_nodes:  # On filtre pour la clarté
+            return
+
+        node_id = str(id(node))
+        # Formatage du label avec des couleurs
+        q_val = node.value / node.visit_count if node.visit_count > 0 else 0
+        label = f"{action_name}\nVisites: {node.visit_count}\nQ: {q_val:.2f}\nValue: {node.value:.2f}\nPrior: {node.prior:.2f}\nTerminal: {node.is_terminal}"
+
+        # Couleur : Vert si bon, Rouge si mauvais
+        color = "honeydew" if q_val > 0 else "lavenderblush"
+        dot.node(node_id, label, style="filled", fillcolor=color)
+
+        if parent_id:
+            dot.edge(parent_id, node_id)
+
+        nodes_count += 1
+
+        # On ne dessine que les enfants les plus visités pour ne pas saturer l'image
+        sorted_children = sorted(
+            node.children.items(), key=lambda x: x[1].visit_count, reverse=True
+        )
+        for act, child in sorted_children[:3]:
+            add_nodes(child, str(act), node_id)
+
+    add_nodes(mcts.root)
+    dot.render(filename, format="png", cleanup=True)
+    print(f"✅ Arbre sauvegardé dans {filename}.png")
+
+
 class Node:
     def __init__(self, prior=0.0):
         self.prior = prior
@@ -44,7 +80,9 @@ class Node:
         )
 
     def compute_score(self, parent_visit_count, c_puct=1.5):
-        return self.compute_Q_value() + self.compute_U_value(parent_visit_count, c_puct)
+        return -self.compute_Q_value() + self.compute_U_value(
+            parent_visit_count, c_puct
+        )
 
     def generate_children(self, action_probs):
         for action, prob in action_probs.items():
@@ -102,7 +140,7 @@ class MCTS:
     def run(
         self,
         state: State,
-        time_simulation: int | None = None,
+        time_simulation: float | None = None,
         num_simulations: int = 100,
         c_puct: float = 1.5,
         device=DEVICE,
@@ -121,17 +159,16 @@ class MCTS:
             self.simulations_done += 1
             node = self.root
             current_state = state.copy()
-            path = [(node, current_state.current_player)]
+            path = [node]
 
             while node.children and not Game.is_terminal(current_state):
-                current_player = current_state.current_player
                 best_action, best_child = max(
                     node.children.items(),
                     key=lambda x: x[1].compute_score(node.visit_count, c_puct),
                 )
                 Game.apply(current_state, best_action)
                 node = best_child
-                path.append((node, current_player))
+                path.append(node)
 
             if Game.is_terminal(current_state):
                 node.is_terminal = True
@@ -145,21 +182,12 @@ class MCTS:
                 value = float(values[0])
 
                 action_probs = probs_to_dict(probs, self.all_actions, legal_moves)
-
                 node.generate_children(action_probs)
 
-            current_player = current_state.current_player
-            discount = 0.5
-
-            for path_node, player in reversed(path):
+            for path_node in reversed(path):
                 path_node.visit_count += 1
-
-                if player == current_player:
-                    path_node.value += value
-                else:
-                    path_node.value -= value
-
-                value *= discount
+                path_node.value += value
+                value = -value * 0.99
 
     def get_best_action(self):
         best_action, _ = max(self.root.children.items(), key=lambda x: x[1].visit_count)

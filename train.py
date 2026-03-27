@@ -51,10 +51,11 @@ class AlphaZeroConfig:
     mcts_simulations: int = 400
     batch_size: int = 512
     num_workers: int = 64
-    epochs_per_iteration: int = 5
+    epochs_per_iteration: int = 20
     learning_rate: float = 0.001
     weight_decay: float = 1e-4
     tournament: bool = False
+    c_puct: float = 1.5
 
 
 class RemoteNet:
@@ -147,7 +148,11 @@ def inference_server(
 
 
 def execute_self_play_episode(
-    net: Any, all_actions: List[Any], num_simulations: int = 100, device: str = DEVICE
+    net: Any,
+    all_actions: List[Any],
+    num_simulations: int = 1000,
+    c_puct: float = 5,
+    device: str = DEVICE,
 ) -> List[TrainingSample]:
     """Executes a single episode of self-play using MCTS."""
     state = State()
@@ -158,7 +163,7 @@ def execute_self_play_episode(
     while not Game.is_terminal(state):
         temperature = 2.0 if round_count < 20 else 0.1
 
-        mcts.run(state, num_simulations=num_simulations, device=device)
+        mcts.run(state, num_simulations=num_simulations, c_puct=c_puct, device=device)
         action_probs = mcts.get_action_probs(temperature)
 
         policy = np.zeros(len(all_actions))
@@ -195,13 +200,18 @@ def worker_generate_data(
     res_pipe: Connection,
     all_actions: List[Any],
     num_simulations: int,
+    c_puct: float,
 ) -> List[TrainingSample]:
     """Worker function to run self-play using the asynchronous inference proxy."""
     torch.set_num_threads(1)
     remote_net = RemoteNet(task_id, req_queue, res_pipe)
 
     dataset = execute_self_play_episode(
-        remote_net, all_actions, num_simulations=num_simulations, device="cpu"
+        remote_net,
+        all_actions,
+        num_simulations=num_simulations,
+        c_puct=c_puct,
+        device="cpu",
     )
 
     # Sécurisation des données pour éviter la fuite de descripteurs de fichiers
@@ -454,6 +464,7 @@ def main():
                         child_pipes[i],
                         all_actions,
                         config.mcts_simulations,
+                        config.c_puct,
                     )
                 )
 

@@ -1,0 +1,18 @@
+[project]
+name = "oxonoproject"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "cython>=3.2.4",
+    "graphviz>=0.21",
+    "numpy>=2.4.3",
+    "pygame>=2.6.1",
+    "torch>=2.11.0",
+    "torchvision>=0.26.0",
+    "tqdm>=4.66.5",
+]
+
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cu126"

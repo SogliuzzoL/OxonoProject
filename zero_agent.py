@@ -4,7 +4,7 @@ import torch
 
 from agent import Agent
 from config import MODEL_PATH
-from mcts import MCTS
+from mcts import MCTS, export_mcts_to_graph
 from oxono import State
 from oxononet import OxonoNet, all_possible_actions
 
@@ -30,8 +30,6 @@ class ZeroAgent(Agent):
         self.last_totem_X = None
 
     def act(self, state: State, remaining_time):
-        time_to_play = remaining_time / max(4 * 8 - self.count_moves, 2)
-
         last_action = state.last_move
         if last_action is not None:
             if state.totem_O != self.last_totem_O:
@@ -40,15 +38,12 @@ class ZeroAgent(Agent):
                 last_action = ("X", state.totem_X, state.last_move)
             self.mcts.update_root(last_action)
 
-        self.mcts.run(
-            state, time_simulation=time_to_play * 0.25, c_puct=1.5, device=DEVICE
-        )
-        best_action = self.mcts.get_best_action()
+        self.mcts.run(state, num_simulations=1_000, c_puct=1.5, device=DEVICE)
 
-        if self.mcts.check_sensors():
-            self.mcts.run(
-                state, time_simulation=time_to_play * 0.75, c_puct=1.5, device=DEVICE
-            )
+        best_action = self.mcts.get_best_action()
+        # export_mcts_to_graph(
+        #     self.mcts, f"mcts_graph_move_{self.count_moves}_player_{self.player}"
+        # )
 
         self.mcts.update_root(best_action)
 
