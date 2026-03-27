@@ -18,17 +18,17 @@ class TrainNode:
     def compute_Q_value(self) -> float:
         if self.visit_count == 0:
             return 0.0
-        # Utilisation de la perte virtuelle pour gérer le parallélisme [cite: 2, 9]
-        return (self.value - self.virtual_loss) / self.visit_count
+        # Correction : on ADDITIONNE la virtual_loss pour pénaliser le score Negamax
+        return (self.value + self.virtual_loss) / self.visit_count
 
     def compute_U_value(self, int parent_visit_count, float c_puct = 1.5) -> float:
-        # Formule PUCT pour équilibrer exploration et exploitation [cite: 2]
         return (
             c_puct * self.prior * np.sqrt(parent_visit_count) / (1 + self.visit_count)
         )
 
     def compute_score(self, int parent_visit_count, float c_puct = 1.5) -> float:
-        return self.compute_Q_value() + self.compute_U_value(parent_visit_count, c_puct)
+        # Correction : ajout du signe MOINS pour respecter la logique Negamax
+        return -self.compute_Q_value() + self.compute_U_value(parent_visit_count, c_puct)
 
     def generate_children(self, dict action_probs):
         for action, prob in action_probs.items():
