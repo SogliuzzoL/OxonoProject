@@ -47,15 +47,15 @@ class AlphaZeroConfig:
     games_per_iteration: int = 300
     evaluation_games: int = 40
     win_rate_threshold: float = 0.55
-    max_buffer_size: int = 100_000
-    mcts_simulations: int = 400
-    batch_size: int = 512
+    max_buffer_size: int = 50_000
+    mcts_simulations: int = 1000
+    batch_size: int = 256
     num_workers: int = 64
-    epochs_per_iteration: int = 20
-    learning_rate: float = 0.001
+    epochs_per_iteration: int = 10
+    learning_rate: float = 0.0005
     weight_decay: float = 1e-4
     tournament: bool = False
-    c_puct: float = 1.5
+    c_puct: float = 2.5
 
 
 class RemoteNet:
@@ -161,7 +161,7 @@ def execute_self_play_episode(
     round_count = 0
 
     while not Game.is_terminal(state):
-        temperature = 2.0 if round_count < 20 else 0.1
+        temperature = 1.0 if round_count < 10 else 0.1
 
         mcts.run(state, num_simulations=num_simulations, c_puct=c_puct, device=device)
         action_probs = mcts.get_action_probs(temperature)
