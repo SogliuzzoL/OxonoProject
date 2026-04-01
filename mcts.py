@@ -187,7 +187,7 @@ class MCTS:
             for path_node in reversed(path):
                 path_node.visit_count += 1
                 path_node.value += value
-                value = -value * 0.99
+                value = -value
 
     def get_best_action(self):
         best_action, _ = max(self.root.children.items(), key=lambda x: x[1].visit_count)
