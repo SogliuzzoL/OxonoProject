@@ -4,6 +4,8 @@ from oxono import Game
 SEARCH_DEPTH = 3
 X_SYMBOL = 'x'
 O_SYMBOL= 'o'
+MINUS_INFINITY = float('-inf') 
+PLUS_INFINITY = float('inf') 
 class MinimaxAgent(Agent):
     
 
@@ -11,12 +13,14 @@ class MinimaxAgent(Agent):
         super().__init__(player)
 
     def act(self, state, remaining_time):
-        best_score = float('-inf')
+        best_score = MINUS_INFINITY 
         best_move = None
+        alpha = MINUS_INFINITY #alpha is best score for maximum
+        beta= PLUS_INFINITY # beta is best score for minimum
         for move in Game.actions(state):
                 new_state = state.copy()
                 Game.apply(new_state, move)
-                score = minmax(new_state, SEARCH_DEPTH, self.player)
+                score = minmax_with_apha_beta_pruning(new_state, SEARCH_DEPTH, self.player, alpha, beta)
                 if score > best_score:
                     best_score = score
                     best_move = move
@@ -27,7 +31,7 @@ class MinimaxAgent(Agent):
 
        
 
-def minmax(state, depth, player):
+def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta):
     """
     Recursively evaluate a game state using the MinMax algo
     Returns the best possible score for the player assuming both players play optimally
@@ -40,23 +44,33 @@ def minmax(state, depth, player):
         return evaluate(state, player)
     # Our turn --> choose the move that maximizes our score
     if is_maximizing: 
-        best_score = float('-inf') # -infinity
-        #is_maximizing=False
+        best_score = MINUS_INFINITY
         for move in Game.actions(state):
             new_state = state.copy()
             Game.apply(new_state, move)
-            score=minmax(new_state,depth-1,player)
+            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta)
             best_score = max(score, best_score)
+            #alpha is the best score that I am guaranteed to have
+            #we update alpha when there is a greater best_score
+            alpha = max(best_score,alpha)
+            #if my best score is greater than what opponent tolerates, he will never comme in this branch
+            if best_score >= beta :
+                return best_score # cut this branch
         return best_score
     #Opponent turn --> he chooses the move that minimizes our score
     else : 
-        worst_score = float('inf') # + infinity
-        #is_maximizing=True
+        worst_score = PLUS_INFINITY
         for move in Game.actions(state):
             new_state = state.copy()
             Game.apply(new_state, move)
-            score=minmax(new_state,depth-1,player)
+            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta)
             worst_score = min(score,worst_score)
+            #beta is the best score that my opponenet is guaranteed to have
+            #we update beta when there is a smaller worst_score
+            beta= min(beta, worst_score)
+            #if my worst score is smaller than what opponent tolerates, he will never comme in this branch
+            if worst_score <= alpha:
+                return worst_score # cut this branch
         return worst_score
 
 
