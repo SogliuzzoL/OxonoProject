@@ -2,11 +2,10 @@ import random
 import time
 
 import numpy as np
-from graphviz import Digraph
 
-from config import DEVICE
+from files_26482510_26482510.config import DEVICE
+from files_26482510_26482510.oxononet import OxonoNet, predict, probs_to_dict
 from oxono import Game, State
-from oxononet import OxonoNet, predict, probs_to_dict
 
 
 def generate_zobrist_table():
@@ -24,41 +23,6 @@ def generate_zobrist_table():
 
 
 ZOBRIST_TABLE = generate_zobrist_table()
-
-
-def export_mcts_to_graph(mcts, filename="mcts_tree", max_nodes=5000):
-    dot = Digraph(comment="MCTS Tree")
-    nodes_count = 0
-
-    def add_nodes(node, action_name="Root", parent_id=None):
-        nonlocal nodes_count
-        if nodes_count > max_nodes:  # On filtre pour la clarté
-            return
-
-        node_id = str(id(node))
-        # Formatage du label avec des couleurs
-        q_val = node.value / node.visit_count if node.visit_count > 0 else 0
-        label = f"{action_name}\nVisites: {node.visit_count}\nQ: {q_val:.2f}\nValue: {node.value:.2f}\nPrior: {node.prior:.2f}\nTerminal: {node.is_terminal}"
-
-        # Couleur : Vert si bon, Rouge si mauvais
-        color = "honeydew" if q_val > 0 else "lavenderblush"
-        dot.node(node_id, label, style="filled", fillcolor=color)
-
-        if parent_id:
-            dot.edge(parent_id, node_id)
-
-        nodes_count += 1
-
-        # On ne dessine que les enfants les plus visités pour ne pas saturer l'image
-        sorted_children = sorted(
-            node.children.items(), key=lambda x: x[1].visit_count, reverse=True
-        )
-        for act, child in sorted_children[:3]:
-            add_nodes(child, str(act), node_id)
-
-    add_nodes(mcts.root)
-    dot.render(filename, format="png", cleanup=True)
-    print(f"✅ Arbre sauvegardé dans {filename}.png")
 
 
 class Node:
@@ -217,27 +181,3 @@ class MCTS:
         )
 
         return action_probs
-
-    def check_sensors(self) -> bool:
-        if self.root.visit_count == 0:
-            return False
-
-        q_value = self.root.compute_Q_value()
-        certainty_triggered = abs(q_value) > 0.90
-
-        terminal_ratio = self.terminal_hits / max(
-            1, getattr(self, "simulations_done", 1)
-        )
-        horizon_triggered = terminal_ratio > 0.45
-
-        max_child_visits = max(
-            [child.visit_count for child in self.root.children.values()], default=0
-        )
-        monopoly_ratio = max_child_visits / self.root.visit_count
-        monopoly_triggered = monopoly_ratio > 0.85
-
-        print(
-            f"Q-value: {q_value:.2f}, Terminal Ratio: {terminal_ratio:.2f}, Monopoly Ratio: {monopoly_ratio:.2f}"
-        )
-
-        return certainty_triggered or horizon_triggered or monopoly_triggered

@@ -1,9 +1,9 @@
 import numpy as np
 import torch
 
-from config import DEVICE
+from files_26482510_26482510.config import DEVICE
 from oxono_train import Game, State
-from oxononet import OxonoNet, probs_to_dict, state_to_tensor
+from files_26482510_26482510.oxononet import OxonoNet, probs_to_dict, state_to_tensor
 
 class TrainNode:
     """Représente un nœud MCTS optimisé pour l'entraînement parallèle."""

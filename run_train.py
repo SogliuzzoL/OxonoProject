@@ -22,8 +22,12 @@ from oxono_train import Game, State
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from config import MODEL_PATH
-from oxononet import OxonoNet, all_possible_actions, state_to_tensor
+from files_26482510_26482510.config import MODEL_PATH
+from files_26482510_26482510.oxononet import (
+    OxonoNet,
+    all_possible_actions,
+    state_to_tensor,
+)
 
 # Configuration of the logging system
 logging.basicConfig(
@@ -43,7 +47,7 @@ TrainingSample = Tuple[np.ndarray, np.ndarray, float]
 class AlphaZeroConfig:
     """Encapsulates the hyperparameters for the AlphaZero training pipeline."""
 
-    iterations: int = 100
+    iterations: int = 200
     games_per_iteration: int = 300
     evaluation_games: int = 40
     win_rate_threshold: float = 0.55
