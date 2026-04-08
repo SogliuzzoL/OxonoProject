@@ -1,4 +1,5 @@
 import os
+import time
 
 import torch
 
@@ -30,13 +31,19 @@ class ZeroAgent(Agent):
         self.last_totem_X = None
 
     def act(self, state: State, remaining_time):
+        t0 = time.time()
         for move in Game.actions(state):
             test_state = state.copy()
             Game.apply(test_state, move)
             if Game.is_terminal(test_state):
                 return move
 
-        time_to_act = remaining_time / 4 if remaining_time > 100 else remaining_time / 2
+        t1 = time.time()
+        elapsed_time = t1 - t0
+        remaining_time -= elapsed_time
+        # time_to_act = remaining_time / 4 if remaining_time > 100 else remaining_time / 2
+        time_to_act = remaining_time / 5 if remaining_time > 60 else remaining_time / 3
+
         last_action = state.last_move
         if last_action is not None:
             if state.totem_O != self.last_totem_O:
