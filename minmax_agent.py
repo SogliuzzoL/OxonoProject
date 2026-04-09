@@ -42,7 +42,7 @@ class MinimaxAgent(Agent):
                     best_move = current_best_move
 
                 depth += 1
-            except :
+            except SearchTimeout:
                 break
         return best_move
             
@@ -50,7 +50,7 @@ class MinimaxAgent(Agent):
 def search_best_move(state, depth, player, deadline):
     actions = list(Game.actions(state))
     if not actions:
-        return None, MINUS_INFINITY
+        return None
 
     alpha = MINUS_INFINITY
     beta = PLUS_INFINITY
@@ -58,7 +58,7 @@ def search_best_move(state, depth, player, deadline):
     best_move = None
     best_score = MINUS_INFINITY
 
-    for move in actions:
+    for move in get_ordered_moves(state,player):
         check_timeout(deadline)
 
 
@@ -75,7 +75,23 @@ def search_best_move(state, depth, player, deadline):
 
     return best_move
 
+def get_ordered_moves(state, player):
+    moves_ordered_by_score = [] #liste sous forme (score, move)
+    for move in Game.actions(state):
+        new_state = state.copy()
+        Game.apply(new_state,move)
+        score=evaluate(new_state,player)
 
+        if Game.is_terminal(new_state):
+            score += 100000
+
+        moves_ordered_by_score.append((score,move))
+
+    #sort pour mettre meilleurs coups devant
+    moves_ordered_by_score.sort(key=lambda x: x[0], reverse=True)
+
+    #retourne uniquement les moves
+    return [move for score, move in moves_ordered_by_score]
 
 def check_timeout(deadline):
     if time.time() >= deadline:
@@ -99,7 +115,7 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline):
     # Our turn --> choose the move that maximizes our score
     if is_maximizing: 
         best_score = MINUS_INFINITY
-        for move in Game.actions(state):
+        for move in get_ordered_moves(state,player):
             check_timeout(deadline)
             new_state = state.copy()
             Game.apply(new_state, move)
@@ -115,7 +131,7 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline):
     #Opponent turn --> he chooses the move that minimizes our score
     else : 
         worst_score = PLUS_INFINITY
-        for move in Game.actions(state):
+        for move in get_ordered_moves(state,player):
             check_timeout(deadline)
 
             new_state = state.copy()
