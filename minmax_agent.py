@@ -30,13 +30,14 @@ class MinimaxAgent(Agent):
         
         deadline = time.time() + max(0.0, time_per_move)
 
+        killer_moves ={}
 
         while True : 
             if (time.time()) >= deadline : 
                 break
             try:
 
-                current_best_move = search_best_move(state,depth,self.player,deadline)
+                current_best_move = search_best_move(state,depth,self.player,deadline,killer_moves)
                 # màj seulement si toute la profondeur est terminée
                 if current_best_move is not None:
                     best_move = current_best_move
@@ -47,7 +48,7 @@ class MinimaxAgent(Agent):
         return best_move
             
 
-def search_best_move(state, depth, player, deadline):
+def search_best_move(state, depth, player, deadline,killer_moves):
     actions = list(Game.actions(state))
     if not actions:
         return None
@@ -58,14 +59,14 @@ def search_best_move(state, depth, player, deadline):
     best_move = None
     best_score = MINUS_INFINITY
 
-    for move in get_ordered_moves(state,player):
+    for move in get_ordered_moves(state,player,depth,killer_moves):
         check_timeout(deadline)
 
 
         new_state = state.copy()
         Game.apply(new_state, move)
 
-        score = minmax_with_apha_beta_pruning(new_state,depth - 1,player,alpha,beta,deadline)
+        score = minmax_with_apha_beta_pruning(new_state,depth - 1,player,alpha,beta,deadline,killer_moves)
 
         if score > best_score:
             best_score = score
@@ -75,9 +76,17 @@ def search_best_move(state, depth, player, deadline):
 
     return best_move
 
-def get_ordered_moves(state, player):
-    moves_ordered_by_score = [] #liste sous forme (score, move)
-    for move in Game.actions(state):
+def get_ordered_moves(state, player,depth,killer_moves):
+    moves_ordered_by_score = [] 
+    moves_by_score=[] #liste sous forme (score, move)
+    killer_move = killer_moves.get(depth)
+    all_moves = list(Game.actions(state))
+    #si il existe un killer move pr cette profondeur, alors on le met d'abord car fait bon score
+    if killer_move!=None and killer_move in all_moves : 
+        moves_ordered_by_score.append(killer_move)
+        all_moves.remove(killer_move)
+
+    for move in all_moves:
         new_state = state.copy()
         Game.apply(new_state,move)
         score=evaluate(new_state,player)
@@ -85,20 +94,24 @@ def get_ordered_moves(state, player):
         if Game.is_terminal(new_state):
             score += 100000
 
-        moves_ordered_by_score.append((score,move))
+        moves_by_score.append((score,move))
 
     #sort pour mettre meilleurs coups devant
-    moves_ordered_by_score.sort(key=lambda x: x[0], reverse=True)
+    moves_by_score.sort(key=lambda x: x[0], reverse=True)
 
-    #retourne uniquement les moves
-    return [move for score, move in moves_ordered_by_score]
+    # les moves triés sont placés derrière killer move
+    for score, move in moves_by_score:
+        moves_ordered_by_score.append(move)
+
+    
+    return moves_ordered_by_score
 
 def check_timeout(deadline):
     if time.time() >= deadline:
         raise SearchTimeout()
        
 
-def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline):
+def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,killer_moves):
     """
     Recursively evaluate a game state using the MinMax algo
     Returns the best possible score for the player assuming both players play optimally
@@ -115,34 +128,36 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline):
     # Our turn --> choose the move that maximizes our score
     if is_maximizing: 
         best_score = MINUS_INFINITY
-        for move in get_ordered_moves(state,player):
+        for move in get_ordered_moves(state,player,depth,killer_moves):
             check_timeout(deadline)
             new_state = state.copy()
             Game.apply(new_state, move)
-            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline)
+            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline,killer_moves)
             best_score = max(score, best_score)
             #alpha is the best score that I am guaranteed to have
             #we update alpha when there is a greater best_score
             alpha = max(best_score,alpha)
-            # if alpha>= beta, min has already better option=this branch will never be chosen
+            # if alpha>= beta, min has already better option=this branch will never be chosen --> killer move
             if alpha >= beta :
+                killer_moves[depth]=move
                 break
         return best_score
     #Opponent turn --> he chooses the move that minimizes our score
     else : 
         worst_score = PLUS_INFINITY
-        for move in get_ordered_moves(state,player):
+        for move in get_ordered_moves(state,player,depth,killer_moves):
             check_timeout(deadline)
 
             new_state = state.copy()
             Game.apply(new_state, move)
-            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline)
+            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline,killer_moves)
             worst_score = min(score,worst_score)
             #beta is the best score that my opponenet is guaranteed to have
             #we update beta when there is a smaller worst_score
             beta= min(beta, worst_score)
-            # if beta <= alpha, max has already better option=this branch will never be chosen
+            # if beta <= alpha, max has already better option=this branch will never be chosen --> killer move
             if beta <= alpha:
+                killer_moves[depth]=move
                 break
         return worst_score
 
@@ -159,7 +174,7 @@ def evaluate(state, player):
     player_score = 0
     player_score += score_all_lines(state, player)
     player_score += score_immediate_threats(state, player)
-    
+
     return player_score
 
 
