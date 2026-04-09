@@ -3,6 +3,7 @@ from Cython.Build import cythonize
 from setuptools import setup
 
 setup(
+    #0packages=[], 
     ext_modules=cythonize(
         ["oxono_train.pyx", "mcts_train.pyx"],
         compiler_directives={
