@@ -1,6 +1,8 @@
 from agent import Agent
 from oxono import Game
 import time
+from mcts import ZOBRIST_TABLE
+
 
 SEARCH_DEPTH = 3
 X_SYMBOL = 'x'
@@ -31,13 +33,14 @@ class MinimaxAgent(Agent):
         deadline = time.time() + max(0.0, time_per_move)
 
         killer_moves ={}
+        transposition_table = {}
 
         while True : 
             if (time.time()) >= deadline : 
                 break
             try:
 
-                current_best_move = search_best_move(state,depth,self.player,deadline,killer_moves)
+                current_best_move = search_best_move(state,depth,self.player,deadline,killer_moves,transposition_table)
                 # màj seulement si toute la profondeur est terminée
                 if current_best_move is not None:
                     best_move = current_best_move
@@ -48,7 +51,7 @@ class MinimaxAgent(Agent):
         return best_move
             
 
-def search_best_move(state, depth, player, deadline,killer_moves):
+def search_best_move(state, depth, player, deadline,killer_moves,transposition_table):
     actions = list(Game.actions(state))
     if not actions:
         return None
@@ -66,7 +69,7 @@ def search_best_move(state, depth, player, deadline,killer_moves):
         new_state = state.copy()
         Game.apply(new_state, move)
 
-        score = minmax_with_apha_beta_pruning(new_state,depth - 1,player,alpha,beta,deadline,killer_moves)
+        score = minmax_with_apha_beta_pruning(new_state,depth - 1,player,alpha,beta,deadline,killer_moves,transposition_table)
 
         if score > best_score:
             best_score = score
@@ -109,9 +112,36 @@ def get_ordered_moves(state, player,depth,killer_moves):
 def check_timeout(deadline):
     if time.time() >= deadline:
         raise SearchTimeout()
-       
+    
 
-def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,killer_moves):
+##################################################
+############## ATTENTION #########################
+### COPIÉ COLLÉ DE LA FONCTION DANS MCTS #########
+def compute_zobrist_hash(state):
+        h = 0
+        for row in range(6):
+            for col in range(6):
+                piece = state.board[row][col]
+                if piece is not None:
+                    symbol, player = piece
+                    type_idx = (0 if symbol == "o" else 2) + player
+                    h ^= ZOBRIST_TABLE["pieces"][row][col][type_idx]
+
+        row, col = state.totem_O
+        h ^= ZOBRIST_TABLE["totem_O"][row][col]
+
+        row, col = state.totem_X
+        h ^= ZOBRIST_TABLE["totem_X"][row][col]
+
+        h ^= ZOBRIST_TABLE["player"][state.current_player]
+
+        return h
+##################################################
+############## ATTENTION #########################
+### COPIÉ COLLÉ DE LA FONCTION DANS MCTS #########
+
+
+def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,killer_moves,transposition_table):
     """
     Recursively evaluate a game state using the MinMax algo
     Returns the best possible score for the player assuming both players play optimally
@@ -124,6 +154,13 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,kil
     if depth==0 : 
         return evaluate(state, player)
     
+    state_hash = compute_zobrist_hash(state)
+    if state_hash in transposition_table:
+        stocked_score, stocked_depth = transposition_table[state_hash]
+        if stocked_depth >= depth: 
+            return stocked_score
+
+    
     is_maximizing = (state.current_player==player) # True if it's our turn else false
     # Our turn --> choose the move that maximizes our score
     if is_maximizing: 
@@ -132,7 +169,7 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,kil
             check_timeout(deadline)
             new_state = state.copy()
             Game.apply(new_state, move)
-            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline,killer_moves)
+            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline,killer_moves,transposition_table)
             best_score = max(score, best_score)
             #alpha is the best score that I am guaranteed to have
             #we update alpha when there is a greater best_score
@@ -141,6 +178,7 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,kil
             if alpha >= beta :
                 killer_moves[depth]=move
                 break
+        transposition_table[state_hash]=(best_score,depth)
         return best_score
     #Opponent turn --> he chooses the move that minimizes our score
     else : 
@@ -150,7 +188,7 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,kil
 
             new_state = state.copy()
             Game.apply(new_state, move)
-            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline,killer_moves)
+            score=minmax_with_apha_beta_pruning(new_state,depth-1,player,alpha,beta,deadline,killer_moves,transposition_table)
             worst_score = min(score,worst_score)
             #beta is the best score that my opponenet is guaranteed to have
             #we update beta when there is a smaller worst_score
@@ -159,6 +197,7 @@ def minmax_with_apha_beta_pruning(state, depth, player, alpha, beta,deadline,kil
             if beta <= alpha:
                 killer_moves[depth]=move
                 break
+        transposition_table[state_hash]=(worst_score,depth)
         return worst_score
 
 
@@ -313,4 +352,4 @@ def score_threats_in_line(line, player, opponent):
 
 
 def get_opponent(player):
-    return "black" if player == "pink" else "pink"
+    return 1-player
