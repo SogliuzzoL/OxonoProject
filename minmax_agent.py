@@ -23,7 +23,15 @@ class MinimaxAgent(Agent):
     def act(self, state, remaining_time):
 
         pieces_remaining = state.pieces_x[self.player] + state.pieces_o[self.player]
-        time_per_move = remaining_time / max(pieces_remaining, 1)
+        move_time_mean = remaining_time / max(pieces_remaining, 1)
+
+        # if few pieces left then we can allow more time per move, max 8sec, else max 4sec
+        if pieces_remaining <= 6:
+            time_per_move = min(move_time_mean, 8.0)
+        else:
+            time_per_move = min(move_time_mean, 4.0)
+
+            
         depth = 1
 
         ## on met un best_move de sécurité dans le cas ou dans le temps imparti il trv pas de move, au moins
@@ -303,14 +311,27 @@ def score_immediate_threats(state, player):
     board = state.board
     opponent = get_opponent(player)
     score = 0
-
+    player_threat_count = 0
+    opponent_threat_count = 0
 
     for row in board:
-        score += score_threats_in_line(row, player, opponent)
+        line_score, player_threats, opponent_threats = score_threats_in_line(row, player, opponent)
+        score += line_score
+        player_threat_count += player_threats
+        opponent_threat_count += opponent_threats
 
     for col in range(len(board[0])):
         column = [board[row][col] for row in range(len(board))]
-        score += score_threats_in_line(column, player, opponent)
+        line_score, player_threats, opponent_threats = score_threats_in_line(column, player, opponent)
+        score += line_score
+        player_threat_count += player_threats
+        opponent_threat_count += opponent_threats
+
+    # if one player has multiple threats possibilites 
+    if player_threat_count >= 2:
+        score += 5000
+    if opponent_threat_count >= 2:
+        score -= 6000
 
     return score
 
@@ -318,6 +339,8 @@ def score_immediate_threats(state, player):
 def score_threats_in_line(line, player, opponent):
 
     score = 0
+    player_threat_count = 0
+    opponent_threat_count = 0
     #on check fenetre de 4 cases donc len-3 
     #soit 0 à 3, soit 1 À 4, soit 2 À 5 
     for start in range(len(line) - 3):
@@ -336,8 +359,10 @@ def score_threats_in_line(line, player, opponent):
 
         if player_pieces_window_count == 3:
             score += 800
+            player_threat_count += 1
         if opponent_pieces_window_count == 3:
             score -= 900
+            opponent_threat_count += 1
 
         # symbol threats 
         x_pieces_window_count = sum(1 for cell in non_empty_cells_window if cell[0] == X_SYMBOL)
@@ -345,10 +370,12 @@ def score_threats_in_line(line, player, opponent):
 
         if x_pieces_window_count == 3:
             score += 120
+            player_threat_count += 1
         if o_pieces_window_count == 3:
             score += 120
+            player_threat_count += 1
 
-    return score
+    return score, player_threat_count, opponent_threat_count
 
 
 def get_opponent(player):
