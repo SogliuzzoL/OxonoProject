@@ -2,7 +2,6 @@ import time
 
 import numpy as np
 
-from files_99942500_26482510.config import DEVICE
 from files_99942500_26482510.oxononet import OxonoNet, predict, probs_to_dict
 from files_99942500_26482510.zobrist import generate_zobrist_table
 from oxono import Game, State
@@ -72,7 +71,7 @@ class MCTS:
         else:
             self.root = Node()
 
-    def get_prediction_with_cache(self, state: State, legal_moves: list, device=DEVICE):
+    def get_prediction_with_cache(self, state: State, legal_moves: list, device="cpu"):
         state_hash = self.compute_zobrist_hash(state)
         if state_hash in self.cache:
             return self.cache[state_hash]
@@ -92,7 +91,7 @@ class MCTS:
         time_simulation: float | None = None,
         num_simulations: int = 100,
         c_puct: float = 1.5,
-        device=DEVICE,
+        device="cpu",
     ):
         self.terminal_hits = 0
         self.simulations_done = 0

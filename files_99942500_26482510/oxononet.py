@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from files_99942500_26482510.config import DEVICE
 from oxono import State
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def all_possible_actions() -> list[tuple[str, tuple[int, int], tuple[int, int]]]:
