@@ -1,7 +1,7 @@
 import time
 
 from agent import Agent
-from files_99942500_26482510.zobrist import generate_zobrist_table
+from files_99942500_26482510.zobrist import compute_zobrist_hash, generate_zobrist_table
 from oxono import Game
 
 SEARCH_DEPTH = 3
@@ -21,15 +21,26 @@ class MinimaxAgent(Agent):
         super().__init__(player)
 
     def act(self, state, remaining_time):
+        t0 = time.time()
+        for move in Game.actions(state):
+            test_state = state.copy()
+            Game.apply(test_state, move)
+            if Game.is_terminal(test_state):
+                return move
+
+        t1 = time.time()
+        elapsed_time = t1 - t0
+        remaining_time -= elapsed_time
 
         pieces_remaining = state.pieces_x[self.player] + state.pieces_o[self.player]
         move_time_mean = remaining_time / max(pieces_remaining, 1)
 
         # if few pieces left then we can allow more time per move, max 8sec, else max 4sec
-        if pieces_remaining <= 6:
-            time_per_move = min(move_time_mean, 8.0)
-        else:
-            time_per_move = min(move_time_mean, 4.0)
+        # if pieces_remaining <= 6:
+        #     time_per_move = min(move_time_mean, 8.0)
+        # else:
+        #     time_per_move = min(move_time_mean, 4.0)
+        time_per_move = move_time_mean
 
         depth = 1
 
@@ -136,35 +147,6 @@ def check_timeout(deadline):
         raise SearchTimeout()
 
 
-##################################################
-############## ATTENTION #########################
-### COPIÉ COLLÉ DE LA FONCTION DANS MCTS #########
-def compute_zobrist_hash(state):
-    h = 0
-    for row in range(6):
-        for col in range(6):
-            piece = state.board[row][col]
-            if piece is not None:
-                symbol, player = piece
-                type_idx = (0 if symbol == "o" else 2) + player
-                h ^= ZOBRIST_TABLE["pieces"][row][col][type_idx]
-
-    row, col = state.totem_O
-    h ^= ZOBRIST_TABLE["totem_O"][row][col]
-
-    row, col = state.totem_X
-    h ^= ZOBRIST_TABLE["totem_X"][row][col]
-
-    h ^= ZOBRIST_TABLE["player"][state.current_player]
-
-    return h
-
-
-##################################################
-############## ATTENTION #########################
-### COPIÉ COLLÉ DE LA FONCTION DANS MCTS #########
-
-
 def minmax_with_apha_beta_pruning(
     state, depth, player, alpha, beta, deadline, killer_moves, transposition_table
 ):
@@ -180,7 +162,7 @@ def minmax_with_apha_beta_pruning(
     if depth == 0:
         return evaluate(state, player)
 
-    state_hash = compute_zobrist_hash(state)
+    state_hash = compute_zobrist_hash(ZOBRIST_TABLE, state)
     if state_hash in transposition_table:
         stocked_score, stocked_depth = transposition_table[state_hash]
         if stocked_depth >= depth:

@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from files_99942500_26482510.oxononet import OxonoNet, predict, probs_to_dict
-from files_99942500_26482510.zobrist import generate_zobrist_table
+from files_99942500_26482510.zobrist import compute_zobrist_hash, generate_zobrist_table
 from oxono import Game, State
 
 ZOBRIST_TABLE = generate_zobrist_table()
@@ -45,26 +45,6 @@ class MCTS:
         self.all_actions = all_actions
         self.cache = {}
 
-    def compute_zobrist_hash(self, state):
-        h = 0
-        for row in range(6):
-            for col in range(6):
-                piece = state.board[row][col]
-                if piece is not None:
-                    symbol, player = piece
-                    type_idx = (0 if symbol == "o" else 2) + player
-                    h ^= ZOBRIST_TABLE["pieces"][row][col][type_idx]
-
-        row, col = state.totem_O
-        h ^= ZOBRIST_TABLE["totem_O"][row][col]
-
-        row, col = state.totem_X
-        h ^= ZOBRIST_TABLE["totem_X"][row][col]
-
-        h ^= ZOBRIST_TABLE["player"][state.current_player]
-
-        return h
-
     def update_root(self, action):
         if action in self.root.children:
             self.root = self.root.children[action]
@@ -72,7 +52,7 @@ class MCTS:
             self.root = Node()
 
     def get_prediction_with_cache(self, state: State, legal_moves: list, device="cpu"):
-        state_hash = self.compute_zobrist_hash(state)
+        state_hash = compute_zobrist_hash(ZOBRIST_TABLE, state)
         if state_hash in self.cache:
             return self.cache[state_hash]
 

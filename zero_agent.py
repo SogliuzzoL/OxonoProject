@@ -25,8 +25,6 @@ class ZeroAgent(Agent):
 
         self.mcts = MCTS(self.net, self.all_actions)
 
-        self.count_moves = 0
-
         self.last_totem_O = None
         self.last_totem_X = None
 
@@ -41,8 +39,9 @@ class ZeroAgent(Agent):
         t1 = time.time()
         elapsed_time = t1 - t0
         remaining_time -= elapsed_time
-        # time_to_act = remaining_time / 4 if remaining_time > 100 else remaining_time / 2
-        time_to_act = remaining_time / 5 if remaining_time > 60 else remaining_time / 3
+
+        pieces_remaining = state.pieces_x[self.player] + state.pieces_o[self.player]
+        time_to_act = remaining_time / pieces_remaining
 
         last_action = state.last_move
         if last_action is not None:
@@ -60,7 +59,5 @@ class ZeroAgent(Agent):
 
         self.last_totem_O = state.totem_O if best_action[0] != "O" else best_action[1]
         self.last_totem_X = state.totem_X if best_action[0] != "X" else best_action[1]
-
-        self.count_moves += 2
 
         return best_action
