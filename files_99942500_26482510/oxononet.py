@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from files_26482510_26482510.config import DEVICE
+from files_99942500_26482510.config import DEVICE
 from oxono import State
 
 

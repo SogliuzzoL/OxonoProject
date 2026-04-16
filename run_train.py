@@ -22,8 +22,8 @@ from oxono_train import Game, State
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from files_26482510_26482510.config import MODEL_PATH
-from files_26482510_26482510.oxononet import (
+from files_99942500_26482510.config import MODEL_PATH
+from files_99942500_26482510.oxononet import (
     OxonoNet,
     all_possible_actions,
     state_to_tensor,

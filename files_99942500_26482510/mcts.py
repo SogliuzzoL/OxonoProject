@@ -1,26 +1,11 @@
-import random
 import time
 
 import numpy as np
 
-from files_26482510_26482510.config import DEVICE
-from files_26482510_26482510.oxononet import OxonoNet, predict, probs_to_dict
+from files_99942500_26482510.config import DEVICE
+from files_99942500_26482510.oxononet import OxonoNet, predict, probs_to_dict
+from files_99942500_26482510.zobrist import generate_zobrist_table
 from oxono import Game, State
-
-
-def generate_zobrist_table():
-    random.seed(42)
-    table = {
-        "pieces": [
-            [[random.getrandbits(64) for _ in range(4)] for _ in range(6)]
-            for _ in range(6)
-        ],
-        "totem_O": [[random.getrandbits(64) for _ in range(6)] for _ in range(6)],
-        "totem_X": [[random.getrandbits(64) for _ in range(6)] for _ in range(6)],
-        "player": [random.getrandbits(64) for _ in range(2)],
-    }
-    return table
-
 
 ZOBRIST_TABLE = generate_zobrist_table()
 
