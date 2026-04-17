@@ -48,11 +48,12 @@ class AthenanTrainer:
     def __init__(self, device="cpu"):
         self.device = device
         self.net = R2AthenanNet(board_size=6).to(self.device)
-        self.optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
+        self.optimizer = optim.SGD(
+            self.net.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-4
+        )
         self.criterion = torch.nn.MSELoss()
 
         self.replay_buffer = []
-        self.max_matches_in_buffer = 100
         self.batch_size = 3000
 
         self.mu = 100
@@ -101,8 +102,9 @@ class AthenanTrainer:
         while time.time() - start_time < total_time_seconds:
             match_data = self.play_training_match(time_per_move)
 
-            self.replay_buffer.append(match_data)
-            if len(self.replay_buffer) > self.max_matches_in_buffer:
+            self.replay_buffer.append({"to_learn": match_data, "archived": []})
+
+            if len(self.replay_buffer) > self.mu:
                 self.replay_buffer.pop(0)
 
             match_count += 1
@@ -134,10 +136,19 @@ class AthenanTrainer:
             best_action = ordinal_action_selection(tree.root)
             Game.apply(state, best_action)
 
-        return match_tree_data
+        augmented_data = []
+        for state_tensor, target_value in match_tree_data:
+            for i in range(4):
+                rotated = torch.rot90(state_tensor, k=i, dims=[1, 2])
+                augmented_data.append((rotated, target_value))
+
+                flipped = torch.flip(rotated, dims=[2])
+                augmented_data.append((flipped, target_value))
+
+        return augmented_data
 
     def _extract_tree_data(self, node, data_list):
-        if node.value is not None:
+        if node.value is not None and (node.is_expanded or node.is_terminal):
             data_list.append(
                 (
                     state_to_tensor(node.state),
@@ -150,37 +161,72 @@ class AthenanTrainer:
                 self._extract_tree_data(child, data_list)
 
     def update_network(self):
-        all_data = []
-        weights = []
-
-        for match_index, match_data in enumerate(self.replay_buffer):
-            age = len(self.replay_buffer) - match_index
-            weight = math.exp(-age / self.mu) + (1 / self.delta)
-
-            all_data.extend(match_data)
-            weights.extend([weight] * len(match_data))
-
-        if len(all_data) < self.batch_size:
-            logger.info(
-                f"Not enough data to train. Current buffer size: {len(all_data)}. Waiting for more matches to be played."
-            )
+        if not self.replay_buffer:
             return
 
-        batch = random.choices(all_data, weights=weights, k=self.batch_size)
+        n = 0
+        for match in self.replay_buffer:
+            total_data = len(match["to_learn"]) + len(match["archived"])
+            n += math.ceil((self.delta / self.mu) * total_data)
 
-        states, target_values = zip(*batch)
-        states_tensor = torch.stack(states).to(self.device)
-        targets_tensor = torch.stack(target_values).to(self.device)
+        g = max(1, math.floor(n / self.batch_size))
 
-        self.optimizer.zero_grad()
-        predictions = self.net(states_tensor)
-        loss = self.criterion(predictions, targets_tensor)
-        loss.backward()
-        self.optimizer.step()
+        if abs(math.floor(n / g) - self.batch_size) > abs(
+            math.floor(n / (g + 1)) - self.batch_size
+        ):
+            g += 1
 
-        logger.info(
-            f"Network updated with batch of size {self.batch_size}. Loss: {loss.item():.4f}"
-        )
+        batches = [[] for _ in range(g)]
+        available_batch_indices = list(range(g))
+
+        for match in self.replay_buffer:
+            total_data = len(match["to_learn"]) + len(match["archived"])
+            l = math.ceil((self.delta / self.mu) * total_data)
+
+            for _ in range(l):
+                if not match["to_learn"]:
+                    match["to_learn"] = match["archived"]
+                    match["archived"] = []
+
+                idx = random.randrange(len(match["to_learn"]))
+                sample = match["to_learn"].pop(idx)
+                match["archived"].append(sample)
+
+                if not available_batch_indices:
+                    available_batch_indices = list(range(g))
+
+                b_idx = random.choice(available_batch_indices)
+                available_batch_indices.remove(b_idx)
+                batches[b_idx].append(sample)
+
+            if not match["to_learn"]:
+                match["to_learn"] = match["archived"]
+                match["archived"] = []
+
+        mean_loss = 0.0
+        valid_batches = 0
+
+        for i, batch in enumerate(batches):
+            if not batch:
+                continue
+
+            states, target_values = zip(*batch)
+            states_tensor = torch.stack(states).to(self.device)
+            targets_tensor = torch.stack(target_values).to(self.device)
+
+            self.optimizer.zero_grad()
+            predictions = self.net(states_tensor)
+            loss = self.criterion(predictions, targets_tensor)
+            loss.backward()
+            self.optimizer.step()
+
+            mean_loss += loss.item()
+            valid_batches += 1
+
+        if valid_batches > 0:
+            logger.info(
+                f"Network updated with {n} samples across {valid_batches} batches. Average batch size: {n / valid_batches:.2f}. Loss: {mean_loss / valid_batches:.6f}."
+            )
 
 
 if __name__ == "__main__":
@@ -188,7 +234,9 @@ if __name__ == "__main__":
 
     try:
         trainer.train_loop(
-            total_time_seconds=48 * 3600, time_per_move=0.5, save_interval_minutes=15
+            total_time_seconds=21 * 7 * 3600,
+            time_per_move=0.5,
+            save_interval_minutes=15,
         )
     except KeyboardInterrupt:
         logger.info(
