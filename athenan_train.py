@@ -20,6 +20,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 MODEL_PATH = "files_99942500_26482510/athenan_oxono_model.pth"
+OPTIMIZER_PATH = "files_99942500_26482510/athenan_optimizer.pth"
+BUFFER_PATH = "files_99942500_26482510/athenan_replay_buffer.pth"
 
 
 def ordinal_action_selection(node):
@@ -46,18 +48,6 @@ class AthenanTrainer:
     def __init__(self, device="cpu"):
         self.device = device
         self.net = R2AthenanNet(board_size=6).to(self.device)
-
-        if os.path.exists(MODEL_PATH):
-            self.net.load_state_dict(
-                torch.load(
-                    MODEL_PATH,
-                    map_location=self.device,
-                )
-            )
-            logger.info("Athenan model loaded successfully.")
-        else:
-            logger.info("Athenan model file not found. Starting with untrained model.")
-
         self.optimizer = optim.SGD(self.net.parameters(), lr=0.01, momentum=0.9)
         self.criterion = torch.nn.MSELoss()
 
@@ -68,9 +58,39 @@ class AthenanTrainer:
         self.mu = 100
         self.delta = 3
 
+        self.load_checkpoint()
+
+    def load_checkpoint(self):
+        if os.path.exists(MODEL_PATH):
+            self.net.load_state_dict(
+                torch.load(MODEL_PATH, map_location=self.device, weights_only=True)
+            )
+            logger.info("Model loaded successfully from checkpoint.")
+
+        if os.path.exists(OPTIMIZER_PATH):
+            self.optimizer.load_state_dict(
+                torch.load(OPTIMIZER_PATH, map_location=self.device, weights_only=True)
+            )
+            logger.info("Optimizer state loaded successfully from checkpoint.")
+
+        if os.path.exists(BUFFER_PATH):
+            self.replay_buffer = torch.load(
+                BUFFER_PATH, map_location=self.device, weights_only=False
+            )
+            logger.info(
+                f"Replay buffer loaded successfully from checkpoint with {len(self.replay_buffer)} matches."
+            )
+
+    def save_checkpoint(self):
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        torch.save(self.net.state_dict(), MODEL_PATH)
+        torch.save(self.optimizer.state_dict(), OPTIMIZER_PATH)
+        torch.save(self.replay_buffer, BUFFER_PATH)
+        logger.info("Checkpoint saved successfully.")
+
     def train_loop(self, total_time_seconds, time_per_move=1.0):
         start_time = time.time()
-        match_count = 0
+        match_count = len(self.replay_buffer)
 
         logger.info("Starting training loop...")
 
@@ -83,7 +103,7 @@ class AthenanTrainer:
 
             match_count += 1
             logger.info(
-                f"Match {match_count} completed. Total matches in buffer: {len(self.replay_buffer)}. Time elapsed: {time.time() - start_time:.2f} seconds."
+                f"Match {match_count} completed, {len(match_data)} states extracted. Total matches in buffer: {len(self.replay_buffer)}."
             )
 
             self.update_network()
@@ -132,7 +152,7 @@ class AthenanTrainer:
 
         if len(all_data) < self.batch_size:
             logger.info(
-                f"Not enough data to update network. Current data points: {len(all_data)}, required: {self.batch_size}. Skipping update."
+                f"Not enough data to train. Current buffer size: {len(all_data)}. Waiting for more matches to be played."
             )
             return
 
@@ -148,13 +168,20 @@ class AthenanTrainer:
         loss.backward()
         self.optimizer.step()
 
-        logger.info(f"Network updated. Loss: {loss.item():.4f}")
+        logger.info(
+            f"Network updated with batch of size {self.batch_size}. Loss: {loss.item():.4f}"
+        )
 
 
 if __name__ == "__main__":
-    trainer = AthenanTrainer(device="cuda")
+    trainer = AthenanTrainer(device="cuda" if torch.cuda.is_available() else "cpu")
 
-    trainer.train_loop(total_time_seconds=3600, time_per_move=0.5)
-
-    torch.save(trainer.net.state_dict(), MODEL_PATH)
-    logger.info("Training completed and model saved.")
+    try:
+        trainer.train_loop(total_time_seconds=86400, time_per_move=0.5)
+    except KeyboardInterrupt:
+        logger.info(
+            "\nInterruption signal received. Saving checkpoint and exiting gracefully..."
+        )
+    finally:
+        trainer.save_checkpoint()
+        logger.info("Checkpoint saved. Exiting.")
