@@ -88,8 +88,12 @@ class AthenanTrainer:
         torch.save(self.replay_buffer, BUFFER_PATH)
         logger.info("Checkpoint saved successfully.")
 
-    def train_loop(self, total_time_seconds, time_per_move=1.0):
+    def train_loop(
+        self, total_time_seconds, time_per_move=1.0, save_interval_minutes=15
+    ):
         start_time = time.time()
+        last_save_time = time.time()
+        save_interval_seconds = save_interval_minutes * 60
         match_count = len(self.replay_buffer)
 
         logger.info("Starting training loop...")
@@ -107,6 +111,12 @@ class AthenanTrainer:
             )
 
             self.update_network()
+
+            current_time = time.time()
+            if current_time - last_save_time >= save_interval_seconds:
+                logger.info("Auto-saving checkpoint...")
+                self.save_checkpoint()
+                last_save_time = current_time
 
     def play_training_match(self, time_per_move):
         state = State()
@@ -177,7 +187,9 @@ if __name__ == "__main__":
     trainer = AthenanTrainer(device="cuda" if torch.cuda.is_available() else "cpu")
 
     try:
-        trainer.train_loop(total_time_seconds=86400, time_per_move=0.5)
+        trainer.train_loop(
+            total_time_seconds=48 * 3600, time_per_move=0.5, save_interval_minutes=15
+        )
     except KeyboardInterrupt:
         logger.info(
             "\nInterruption signal received. Saving checkpoint and exiting gracefully..."
