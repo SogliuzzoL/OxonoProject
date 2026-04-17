@@ -122,8 +122,24 @@ class MCTS:
                     raw_value = self.eval_fn(current_state, player)
                     #normalize value
                     value = max(-1.0, min(1.0, raw_value /MAX_HEURISTIC_VALUE))
-                    uniform_probability = 1.0 / len(legal_moves)
-                    action_probs = {move: uniform_probability for move in legal_moves}
+
+                    # heuristic priors
+                    moves_by_score = {}
+                    for move in legal_moves:
+                        next_state = current_state.copy()
+                        Game.apply(next_state, move)
+                        moves_by_score[move] = self.eval_fn(next_state, player)
+
+                    min_score = min(moves_by_score.values())
+                    positive_shifted_scores = {}
+                    for move, score in moves_by_score.items():
+                        positive_shifted_scores[move] = score-min_score+1.0 #+1 so we do not have a prior=0
+
+                    total = sum(positive_shifted_scores.values())
+                    action_probs = {}
+                    for move, score in positive_shifted_scores.items():
+                        action_probs[move] = score/total
+
                     node.generate_children(action_probs)
 
             for path_node in reversed(path):
