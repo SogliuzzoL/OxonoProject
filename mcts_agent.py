@@ -4,12 +4,17 @@ from files_99942500_26482510.mcts import MCTS
 from files_99942500_26482510.utils import all_possible_actions
 from oxono import Game, State
 
+TOTEM_X = "X"
+TOTEM_O = "O"
+
 
 class MCTSAgent(Agent):
     def __init__(self, player):
         super().__init__(player)
         self.all_actions = all_possible_actions()
         self.mcts = MCTS(all_actions=self.all_actions, eval_fn=evaluate)
+        self.last_totem_O = None
+        self.last_totem_X = None
 
     def act(self, state: State, remaining_time):
         # Coup gagnant immédiat
@@ -22,8 +27,14 @@ class MCTSAgent(Agent):
         pieces_remaining = state.pieces_x[self.player] + state.pieces_o[self.player]
         time_per_move = remaining_time / max(pieces_remaining, 1)
 
+
+        # Reconstruct action to advance the tree
         if state.last_move is not None:
-            self.mcts.update_root(state.last_move)
+            if state.totem_O != self.last_totem_O:
+                opponent_last_action = (TOTEM_O, state.totem_O, state.last_move)
+            else:
+                opponent_last_action = (TOTEM_X, state.totem_X, state.last_move)
+            self.mcts.update_root(opponent_last_action)
 
         self.mcts.run(
             state,
@@ -33,5 +44,7 @@ class MCTSAgent(Agent):
         )
 
         best_action = self.mcts.get_best_action()
+        self.last_totem_O = state.totem_O if best_action[0] != TOTEM_O else best_action[1]
+        self.last_totem_X = state.totem_X if best_action[0] != TOTEM_X else best_action[1]
         self.mcts.update_root(best_action)
         return best_action

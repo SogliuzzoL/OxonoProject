@@ -170,12 +170,11 @@ def score_threats_in_line(line, player, opponent):
             1 for cell in non_empty_cells_window if cell[0] == O_SYMBOL
         )
 
+
         if x_pieces_window_count == 3:
             score += 120
-            player_threat_count += 1
         if o_pieces_window_count == 3:
             score += 120
-            player_threat_count += 1
 
     return score, player_threat_count, opponent_threat_count
 

@@ -26,7 +26,7 @@ case $AGENT_NAME in
     "mcts_agent")
         echo "Packaging mcts_agent..."
         cp mcts_agent.py $TEMP_FILE
-        zip $TARGET_ZIP $TEMP_FILE "$FOLDER/heuristic.py" "$FOLDER/mcts.py" "$FOLDER/oxononet.py" "$FOLDER/utils.py"
+        zip $TARGET_ZIP $TEMP_FILE "$FOLDER/zobrist.py" "$FOLDER/heuristic.py" "$FOLDER/mcts.py" "$FOLDER/oxononet.py" "$FOLDER/utils.py"
         ;;
     "zero_agent")
         echo "Packaging zero_agent..."

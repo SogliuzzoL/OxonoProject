@@ -163,9 +163,16 @@ def minmax_with_apha_beta_pruning(
 
     state_hash = compute_zobrist_hash(ZOBRIST_TABLE, state)
     if state_hash in transposition_table:
-        stocked_score, stocked_depth = transposition_table[state_hash]
+        stocked_score, stocked_depth, flag_bound = transposition_table[state_hash]
         if stocked_depth >= depth:
-            return stocked_score
+            if flag_bound == "exact":
+                return stocked_score
+            elif flag_bound == "lower":
+                alpha = max(alpha, stocked_score)
+            elif flag_bound == "upper":
+                beta = min(beta, stocked_score)
+            if alpha >= beta:
+                return stocked_score
 
     is_maximizing = state.current_player == player  # True if it's our turn else false
     # Our turn --> choose the move that maximizes our score
@@ -192,7 +199,12 @@ def minmax_with_apha_beta_pruning(
             # if alpha>= beta, min has already better option=this branch will never be chosen --> killer move
             if alpha >= beta:
                 killer_moves[depth] = move
+                cutoff=True
                 break
+        if cutoff:
+            flag_bound="lower"
+        else:
+            flag_bound="exact"
         transposition_table[state_hash] = (best_score, depth)
         return best_score
     # Opponent turn --> he chooses the move that minimizes our score
@@ -220,7 +232,12 @@ def minmax_with_apha_beta_pruning(
             # if beta <= alpha, max has already better option=this branch will never be chosen --> killer move
             if beta <= alpha:
                 killer_moves[depth] = move
+                cutoff = True
                 break
+        if cutoff:
+            flag_bound="upper"
+        else:
+            flag_bound="exact"
         transposition_table[state_hash] = (worst_score, depth)
         return worst_score
 
