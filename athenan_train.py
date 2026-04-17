@@ -68,7 +68,7 @@ class AthenanTrainer:
 
             match_count += 1
             logger.info(
-                f"Match {match_count} completed. Total matches in buffer: {len(self.replay_buffer)}. Total points Time elapsed: {time.time() - start_time:.2f} seconds."
+                f"Match {match_count} completed. Total matches in buffer: {len(self.replay_buffer)}. Time elapsed: {time.time() - start_time:.2f} seconds."
             )
 
             self.update_network()
