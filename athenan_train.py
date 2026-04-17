@@ -1,5 +1,6 @@
 import logging
 import math
+import os
 import random
 import time
 
@@ -17,6 +18,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+MODEL_PATH = "files_99942500_26482510/athenan_oxono_model.pth"
 
 
 def ordinal_action_selection(node):
@@ -43,6 +46,18 @@ class AthenanTrainer:
     def __init__(self, device="cpu"):
         self.device = device
         self.net = R2AthenanNet(board_size=6).to(self.device)
+
+        if os.path.exists(MODEL_PATH):
+            self.net.load_state_dict(
+                torch.load(
+                    MODEL_PATH,
+                    map_location=self.device,
+                )
+            )
+            logger.info("Athenan model loaded successfully.")
+        else:
+            logger.info("Athenan model file not found. Starting with untrained model.")
+
         self.optimizer = optim.SGD(self.net.parameters(), lr=0.01, momentum=0.9)
         self.criterion = torch.nn.MSELoss()
 
@@ -141,7 +156,5 @@ if __name__ == "__main__":
 
     trainer.train_loop(total_time_seconds=3600, time_per_move=0.5)
 
-    torch.save(
-        trainer.net.state_dict(), "files_99942500_26482510/athenan_oxono_model.pth"
-    )
+    torch.save(trainer.net.state_dict(), MODEL_PATH)
     logger.info("Training completed and model saved.")

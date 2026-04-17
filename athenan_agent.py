@@ -8,22 +8,24 @@ from files_99942500_26482510.athenan_net import R2AthenanNet
 from files_99942500_26482510.athenan_tree import AthenanTree
 from oxono import Game
 
+MODEL_PATH = "files_99942500_26482510/athenan_oxono_model.pth"
+
 
 class AthenanAgent(Agent):
     def __init__(self, player):
         self.player = player
         self.net = R2AthenanNet()
 
-        if os.path.exists("files_99942500_26482510/athenan_oxono_model.pth"):
+        if os.path.exists(MODEL_PATH):
             self.net.load_state_dict(
                 torch.load(
-                    "files_99942500_26482510/athenan_oxono_model.pth",
+                    MODEL_PATH,
                     map_location="cpu",
                 )
             )
-            print("Athenan model loaded successfully.")
-        else:
-            print("Athenan model file not found. Starting with untrained model.")
+        #     print("Athenan model loaded successfully.")
+        # else:
+        #     print("Athenan model file not found. Starting with untrained model.")
 
         self.net.eval()
 
@@ -46,7 +48,7 @@ class AthenanAgent(Agent):
 
         tree = AthenanTree(state, self.player, self.net, device="cpu")
 
-        print(f"⏱️ Temps alloué pour ce tour : {time_to_act:.3f} secondes")
+        # print(f"Time allocated for move: {time_to_act:.2f} seconds. Starting search...")
         while time.time() < deadline:
             tree.principal_variation_search()
 
@@ -54,7 +56,7 @@ class AthenanAgent(Agent):
         max_visits = -1
 
         for action, child in tree.root.children.items():
-            print(f"   Coup {action} : {child.visits} visites, Valeur = {child.value}")
+            # print(f"Move: {action}, Visits: {child.visits}, Value: {child.value}")
             if child.visits > max_visits:
                 max_visits = child.visits
                 best_move = action
