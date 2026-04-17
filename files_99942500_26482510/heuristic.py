@@ -3,6 +3,7 @@ from oxono import Game
 
 X_SYMBOL = "x"
 O_SYMBOL = "o"
+MAX_HEURISTIC_VALUE=10000
 
 
 def evaluate(state, player):
@@ -10,7 +11,7 @@ def evaluate(state, player):
     Estimate the value of a state for the player
     """
     if Game.is_terminal(state):
-        return Game.utility(state, player) * 10000
+        return Game.utility(state, player) * MAX_HEURISTIC_VALUE
     player_score = 0
     player_score += score_all_lines(state, player)
     player_score += score_immediate_threats(state, player)

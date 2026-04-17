@@ -4,6 +4,7 @@ import numpy as np
 
 from files_99942500_26482510.oxononet import predict, probs_to_dict
 from files_99942500_26482510.zobrist import compute_zobrist_hash, generate_zobrist_table
+from files_99942500_26482510.heuristic import MAX_HEURISTIC_VALUE
 from oxono import Game, State
 
 ZOBRIST_TABLE = generate_zobrist_table()
@@ -118,7 +119,9 @@ class MCTS:
                     node.generate_children(action_probs)
                 # for mcts agent
                 elif self.eval_fn is not None and player is not None:
-                    value = self.eval_fn(current_state, player)
+                    raw_value = self.eval_fn(current_state, player)
+                    #normalize value
+                    value = max(-1.0, min(1.0, raw_value /MAX_HEURISTIC_VALUE))
                     uniform_probability = 1.0 / len(legal_moves)
                     action_probs = {move: uniform_probability for move in legal_moves}
                     node.generate_children(action_probs)
