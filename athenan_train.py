@@ -63,19 +63,19 @@ class AthenanTrainer:
     def load_checkpoint(self):
         if os.path.exists(MODEL_PATH):
             self.net.load_state_dict(
-                torch.load(MODEL_PATH, map_location=self.device, weights_only=True)
+                torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
             )
             logger.info("Model loaded successfully from checkpoint.")
 
         if os.path.exists(OPTIMIZER_PATH):
             self.optimizer.load_state_dict(
-                torch.load(OPTIMIZER_PATH, map_location=self.device, weights_only=True)
+                torch.load(OPTIMIZER_PATH, map_location="cpu", weights_only=True)
             )
             logger.info("Optimizer state loaded successfully from checkpoint.")
 
         if os.path.exists(BUFFER_PATH):
             self.replay_buffer = torch.load(
-                BUFFER_PATH, map_location=self.device, weights_only=False
+                BUFFER_PATH, map_location="cpu", weights_only=False
             )
             logger.info(
                 f"Replay buffer loaded successfully from checkpoint with {len(self.replay_buffer)} matches."
