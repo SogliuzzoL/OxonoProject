@@ -178,6 +178,7 @@ def minmax_with_apha_beta_pruning(
     # Our turn --> choose the move that maximizes our score
     if is_maximizing:
         best_score = MINUS_INFINITY
+        cutoff= False
         for move in get_ordered_moves(state, player, depth, killer_moves):
             check_timeout(deadline)
             new_state = state.copy()
@@ -205,11 +206,12 @@ def minmax_with_apha_beta_pruning(
             flag_bound="lower"
         else:
             flag_bound="exact"
-        transposition_table[state_hash] = (best_score, depth)
+        transposition_table[state_hash] = (best_score, depth,flag_bound)
         return best_score
     # Opponent turn --> he chooses the move that minimizes our score
     else:
         worst_score = PLUS_INFINITY
+        cutoff = False
         for move in get_ordered_moves(state, player, depth, killer_moves):
             check_timeout(deadline)
 
@@ -238,7 +240,7 @@ def minmax_with_apha_beta_pruning(
             flag_bound="upper"
         else:
             flag_bound="exact"
-        transposition_table[state_hash] = (worst_score, depth)
+        transposition_table[state_hash] = (worst_score, depth,flag_bound)
         return worst_score
 
 
