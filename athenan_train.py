@@ -48,7 +48,7 @@ class AthenanTrainer:
     def __init__(self, device="cpu"):
         self.device = device
         self.net = R2AthenanNet(board_size=6).to(self.device)
-        self.optimizer = optim.SGD(self.net.parameters(), lr=0.01, momentum=0.9)
+        self.optimizer = optim.SGD(self.net.parameters(), lr=0.001, momentum=0.9)
         self.criterion = torch.nn.MSELoss()
 
         self.replay_buffer = []

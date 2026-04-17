@@ -21,7 +21,7 @@ class ResidualBlock(nn.Module):
 
 
 class R2AthenanNet(nn.Module):
-    def __init__(self, input_channels=7, filters=132, dense_neurons=155, board_size=6):
+    def __init__(self, input_channels=7, filters=132, dense_neurons=518, board_size=6):
         super(R2AthenanNet, self).__init__()
 
         self.conv1 = nn.Conv2d(input_channels, filters, kernel_size=3, padding=1)
@@ -32,7 +32,7 @@ class R2AthenanNet(nn.Module):
         self.fc2 = nn.Linear(dense_neurons, 1)
 
     def forward(self, x):
-        x = self.conv1(x)
+        x = F.relu(self.conv1(x))
         x = self.res_blocks(x)
         x = F.relu(self.conv2(x))
         x = x.view(x.size(0), -1)
