@@ -21,7 +21,7 @@ case $AGENT_NAME in
     "zero_agent")
         echo "Packaging de l'agent Zero..."
         cp zero_agent.py $TEMP_FILE
-        zip $TARGET_ZIP $TEMP_FILE "$FOLDER"/*.py "$FOLDER/oxononet.pth"
+        zip $TARGET_ZIP $TEMP_FILE "$FOLDER"/config.py "$FOLDER"/mcts.py "$FOLDER"/oxononet.py "$FOLDER"/utils.py "$FOLDER"/zobrist.py "$FOLDER/oxononet.pth"
         ;;
     *)
         echo "❌ Erreur : Seuls 'minmax_agent' et 'zero_agent' sont acceptés."

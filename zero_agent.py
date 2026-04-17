@@ -6,7 +6,8 @@ import torch
 from agent import Agent
 from files_99942500_26482510.config import MODEL_PATH
 from files_99942500_26482510.mcts import MCTS
-from files_99942500_26482510.oxononet import OxonoNet, all_possible_actions
+from files_99942500_26482510.oxononet import OxonoNet
+from files_99942500_26482510.utils import all_possible_actions
 from oxono import Game, State
 
 DEVICE = "cpu"
