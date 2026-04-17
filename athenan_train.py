@@ -121,7 +121,6 @@ class AthenanTrainer:
             )
             return
 
-        # Échantillonnage pondéré au lieu d'un tirage uniforme
         batch = random.choices(all_data, weights=weights, k=self.batch_size)
 
         states, target_values = zip(*batch)

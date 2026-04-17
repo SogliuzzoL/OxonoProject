@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-from files_99942500_26482510.oxononet import OxonoNet, predict, probs_to_dict
+from files_99942500_26482510.oxononet import predict, probs_to_dict
 from files_99942500_26482510.zobrist import compute_zobrist_hash, generate_zobrist_table
 from oxono import Game, State
 
@@ -39,7 +39,7 @@ class Node:
 
 
 class MCTS:
-    #def __init__(self, net: OxonoNet, all_actions: list):
+    # def __init__(self, net: OxonoNet, all_actions: list):
     def __init__(self, net=None, all_actions=None, eval_fn=None):
         self.root = Node()
         self.net = net
@@ -74,7 +74,7 @@ class MCTS:
         num_simulations: int = 100,
         c_puct: float = 1.5,
         device="cpu",
-        player=None
+        player=None,
     ):
         self.terminal_hits = 0
         self.simulations_done = 0

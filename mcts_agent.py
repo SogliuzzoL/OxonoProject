@@ -1,8 +1,9 @@
 from agent import Agent
-from oxono import Game, State
 from files_99942500_26482510.heuristic import evaluate
 from files_99942500_26482510.mcts import MCTS
-from files_99942500_26482510.oxononet import all_possible_actions
+from files_99942500_26482510.utils import all_possible_actions
+from oxono import Game, State
+
 
 class MCTSAgent(Agent):
     def __init__(self, player):
