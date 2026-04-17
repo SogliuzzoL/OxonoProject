@@ -39,11 +39,13 @@ class Node:
 
 
 class MCTS:
-    def __init__(self, net: OxonoNet, all_actions: list):
+    #def __init__(self, net: OxonoNet, all_actions: list):
+    def __init__(self, net=None, all_actions=None, eval_fn=None):
         self.root = Node()
         self.net = net
         self.all_actions = all_actions
         self.cache = {}
+        self.eval_fn = eval_fn
 
     def update_root(self, action):
         if action in self.root.children:
@@ -72,6 +74,7 @@ class MCTS:
         num_simulations: int = 100,
         c_puct: float = 1.5,
         device="cpu",
+        player=None
     ):
         self.terminal_hits = 0
         self.simulations_done = 0
@@ -104,13 +107,21 @@ class MCTS:
                 value = Game.utility(current_state, current_state.current_player)
             else:
                 legal_moves = list(Game.actions(current_state))
-                probs, values = self.get_prediction_with_cache(
-                    current_state, legal_moves, device=device
-                )
-                value = float(values[0])
+                # for zero agent
+                if self.net is not None:
+                    probs, values = self.get_prediction_with_cache(
+                        current_state, legal_moves, device=device
+                    )
+                    value = float(values[0])
 
-                action_probs = probs_to_dict(probs, self.all_actions, legal_moves)
-                node.generate_children(action_probs)
+                    action_probs = probs_to_dict(probs, self.all_actions, legal_moves)
+                    node.generate_children(action_probs)
+                # for mcts agent
+                elif self.eval_fn is not None and player is not None:
+                    value = self.eval_fn(current_state, player)
+                    uniform_probability = 1.0 / len(legal_moves)
+                    action_probs = {move: uniform_probability for move in legal_moves}
+                    node.generate_children(action_probs)
 
             for path_node in reversed(path):
                 path_node.visit_count += 1
