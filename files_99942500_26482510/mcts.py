@@ -1,8 +1,13 @@
+import random
 import time
 
 import numpy as np
 
-from files_99942500_26482510.oxononet import predict, probs_to_dict
+try:
+    from files_99942500_26482510.oxononet import predict, probs_to_dict
+except ImportError:
+    predict = probs_to_dict = None
+
 from files_99942500_26482510.zobrist import compute_zobrist_hash, generate_zobrist_table
 from files_99942500_26482510.heuristic import MAX_HEURISTIC_VALUE
 from oxono import Game, State
@@ -40,13 +45,18 @@ class Node:
 
 
 class MCTS:
-    # def __init__(self, net: OxonoNet, all_actions: list):
-    def __init__(self, net=None, all_actions=None, eval_fn=None):
+    def __init__(self, net=None, all_actions=None, eval_fn=None,
+                 use_normalization=True, use_heuristic_priors=True,
+                 use_early_playout=False, playout_depth=5):
         self.root = Node()
         self.net = net
         self.all_actions = all_actions
         self.cache = {}
         self.eval_fn = eval_fn
+        self.use_normalization = use_normalization
+        self.use_heuristic_priors = use_heuristic_priors
+        self.use_early_playout = use_early_playout
+        self.playout_depth = playout_depth
 
     def update_root(self, action):
         if action in self.root.children:
@@ -67,6 +77,20 @@ class MCTS:
             values.cpu().detach().numpy(),
         )
         return self.cache[state_hash]
+
+    def _early_playout_value(self, state: State, player: int) -> float:
+        """
+        Play PLAYOUT_DEPTH random moves from state, then evaluate.
+        Gives a smoother value estimate than pure static evaluation by
+        sampling a short trajectory into the future.
+        """
+        current = state.copy()
+        for _ in range(self.playout_depth):
+            if Game.is_terminal(current):
+                return float(Game.utility(current, player) * MAX_HEURISTIC_VALUE)
+            move = random.choice(list(Game.actions(current)))
+            Game.apply(current, move)
+        return float(self.eval_fn(current, player))
 
     def run(
         self,
@@ -114,31 +138,40 @@ class MCTS:
                         current_state, legal_moves, device=device
                     )
                     value = float(values[0])
-
                     action_probs = probs_to_dict(probs, self.all_actions, legal_moves)
                     node.generate_children(action_probs)
                 # for mcts agent
                 elif self.eval_fn is not None and player is not None:
-                    raw_value = self.eval_fn(current_state, player)
-                    #normalize value
-                    value = max(-1.0, min(1.0, raw_value /MAX_HEURISTIC_VALUE))
+                    if self.use_early_playout:
+                        raw_value = self._early_playout_value(current_state, player)
+                    else:
+                        raw_value = self.eval_fn(current_state, player)
 
-                    # heuristic priors
-                    moves_by_score = {}
-                    for move in legal_moves:
-                        next_state = current_state.copy()
-                        Game.apply(next_state, move)
-                        moves_by_score[move] = self.eval_fn(next_state, player)
+                    if self.use_normalization:
+                        value = max(-1.0, min(1.0, raw_value / MAX_HEURISTIC_VALUE))
+                    else:
+                        value = raw_value
 
-                    min_score = min(moves_by_score.values())
-                    positive_shifted_scores = {}
-                    for move, score in moves_by_score.items():
-                        positive_shifted_scores[move] = score-min_score+1.0 #+1 so we do not have a prior=0
+                    if self.use_heuristic_priors:
+                        moves_by_score = {}
+                        for move in legal_moves:
+                            next_state = current_state.copy()
+                            Game.apply(next_state, move)
+                            moves_by_score[move] = self.eval_fn(next_state, player)
 
-                    total = sum(positive_shifted_scores.values())
-                    action_probs = {}
-                    for move, score in positive_shifted_scores.items():
-                        action_probs[move] = score/total
+                        min_score = min(moves_by_score.values())
+                        positive_shifted_scores = {
+                            move: score - min_score + 1.0
+                            for move, score in moves_by_score.items()
+                        }
+                        total = sum(positive_shifted_scores.values())
+                        action_probs = {
+                            move: score / total
+                            for move, score in positive_shifted_scores.items()
+                        }
+                    else:
+                        uniform_prob = 1.0 / len(legal_moves)
+                        action_probs = {move: uniform_prob for move in legal_moves}
 
                     node.generate_children(action_probs)
 
@@ -167,9 +200,7 @@ class MCTS:
         }
 
         total = sum(action_probs.values())
-
         action_probs = {action: prob / total for action, prob in action_probs.items()}
-
         action_probs = dict(
             sorted(action_probs.items(), key=lambda x: x[1], reverse=True)
         )

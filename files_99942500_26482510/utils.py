@@ -1,4 +1,7 @@
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 
 from oxono import State
 
@@ -22,7 +25,7 @@ def all_possible_actions() -> list[tuple[str, tuple[int, int], tuple[int, int]]]
     return actions
 
 
-def state_to_tensor(state: State) -> torch.Tensor:
+def state_to_tensor(state: State):
     tensor = torch.zeros((7, 6, 6), dtype=torch.float32)
     for row in range(6):
         for col in range(6):
