@@ -34,7 +34,8 @@ def ordinal_action_selection(node):
     if not valid_children:
         return list(Game.actions(node.state))[0]
 
-    valid_children.sort(key=lambda x: x[1].value, reverse=True)
+    is_maximizing = node.current_player == 0
+    valid_children.sort(key=lambda x: x[1].value, reverse=is_maximizing)
 
     epsilon = random.uniform(0, 1)
 
@@ -135,6 +136,14 @@ class AthenanTrainer:
 
             best_action = ordinal_action_selection(tree.root)
             Game.apply(state, best_action)
+
+            if Game.is_terminal(state):
+                values = [val.item() for _, val in match_tree_data]
+                positives = sum(1 for v in values if v > 0)
+                negatives = sum(1 for v in values if v < 0)
+                logger.info(
+                    f"Terminal state reached. Extracted {len(match_tree_data)} states: {positives} positive, {negatives} negative."
+                )
 
         augmented_data = []
         for state_tensor, target_value in match_tree_data:

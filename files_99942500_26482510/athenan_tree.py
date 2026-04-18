@@ -38,7 +38,7 @@ class AthenanTree:
 
         while node.is_expanded and not node.is_terminal:
             best_child = None
-            is_maximizing = node.current_player == self.root_player
+            is_maximizing = node.current_player == 0
 
             if is_maximizing:
                 best_val = float("-inf")
@@ -79,7 +79,7 @@ class AthenanTree:
             path.append(node)
 
             best_child = None
-            is_maximizing = node.current_player == self.root_player
+            is_maximizing = node.current_player == 0
 
             if is_maximizing:
                 best_val = float("-inf")
@@ -127,7 +127,7 @@ class AthenanTree:
 
         for child in node.children.values():
             if child.is_terminal:
-                base_score = float(Game.utility(child.state, self.root_player))
+                base_score = float(Game.utility(child.state, 0))
 
                 if base_score > 0:
                     child.value = base_score - (child.depth * 0.001)
@@ -161,7 +161,7 @@ class AthenanTree:
 
     def _backpropagate(self, path):
         for node in reversed(path[:-1]):
-            is_maximizing = node.current_player == self.root_player
+            is_maximizing = node.current_player == 0
             valid_children = [
                 c.value for c in node.children.values() if c.value is not None
             ]
