@@ -61,10 +61,11 @@ from stats_plot import generate_plots
 
 TIME_LIMIT_SECONDS = 300
 NUM_GAMES          = 20
-NUM_WORKERS        = 4    # 4 parallel games × 2 agent processes = 8 cores used
+NUM_WORKERS        = 7    # 7 parallel games × 2 agent processes = 14 cores used
 
-MCTS  = "agents/mcts/"
-MM    = "agents/minmax/"
+MCTS      = "agents/mcts/"
+MM        = "agents/minmax/"
+MM_TUNED  = "agents/minmax_tuned/"
 
 MCTS_ABLATION_MATCHUPS = [
     ("MCTS base",               MCTS+"mcts_agent1.py",    "minmax_agent.py"),
@@ -86,10 +87,28 @@ MINMAX_ABLATION_MATCHUPS = [
     ("+ aspiration windows",    MM+"minmax_agent9.py",    MCTS+"mcts_agent1.py"),
 ]
 
+MINMAX_VS_MCTS4_MATCHUPS = [
+    ("Minmax base",             MM+"minmax_agent1.py",    MCTS+"mcts_agent4.py"),
+    ("+ ordonnancement",        MM+"minmax_agent2.py",    MCTS+"mcts_agent4.py"),
+    ("+ killer moves",          MM+"minmax_agent3.py",    MCTS+"mcts_agent4.py"),
+    ("+ table transposition",   MM+"minmax_agent4.py",    MCTS+"mcts_agent4.py"),
+    ("+ quiescence",            MM+"minmax_agent5.py",    MCTS+"mcts_agent4.py"),
+    ("+ LMR",                   MM+"minmax_agent6.py",    MCTS+"mcts_agent4.py"),
+    ("+ singular extensions",   MM+"minmax_agent7.py",    MCTS+"mcts_agent4.py"),
+    ("+ probcut",               MM+"minmax_agent8.py",    MCTS+"mcts_agent4.py"),
+    ("+ aspiration windows",    MM+"minmax_agent9.py",    MCTS+"mcts_agent4.py"),
+]
+
 HEURISTIC_ABLATION_MATCHUPS = [
     ("Heuristique base",        MCTS+"mcts_agent4_hv1.py", "minmax_agent.py"),
     ("+ pièces restantes",      MCTS+"mcts_agent4_hv2.py", "minmax_agent.py"),
     ("+ contrôle totems",       MCTS+"mcts_agent4.py",     "minmax_agent.py"),
+]
+
+MINMAX_TUNED_MATCHUPS = [
+    ("+ singular (margin=2000)", MM_TUNED+"minmax_tuned2.py", MCTS+"mcts_agent4.py"),
+    ("+ probcut (margin=800)",   MM_TUNED+"minmax_tuned3.py", MCTS+"mcts_agent4.py"),
+    ("+ aspiration windows",     MM_TUNED+"minmax_tuned4.py", MCTS+"mcts_agent4.py"),
 ]
 
 BASELINE_MATCHUPS = [
@@ -98,18 +117,42 @@ BASELINE_MATCHUPS = [
     ("vs MCTS base",            MCTS+"mcts_agent4.py", MCTS+"mcts_agent1.py"),
 ]
 
+HYBRID        = "agents/hybrid/"
+MM_BEST       = MM_TUNED + "minmax_tuned4.py"
+MCTS_BEST     = MCTS     + "mcts_agent3.py"
+HYBRID_AGENT  = HYBRID   + "hybrid_agent.py"
+
+FINAL_MATCHUPS = [
+    ("Hybrid vs Minmax tuned",  HYBRID_AGENT,  MM_BEST),
+    ("Hybrid vs MCTS best",     HYBRID_AGENT,  MCTS_BEST),
+    ("MCTS best vs Minmax tuned", MCTS_BEST,   MM_BEST),
+]
+
 BAR_TITLES = {
-    "mcts":       "Progression de l'agent MCTS — 20 parties vs Minmax",
-    "minmax":     "Progression de l'agent Minmax — 20 parties vs MCTS base",
-    "heuristic":  "Impact de l'heuristique — 20 parties vs Minmax",
-    "baseline":   "Agent final vs références — 20 parties par matchup",
+    "mcts":          "Progression de l'agent MCTS — 20 parties vs Minmax",
+    "minmax":        "Progression de l'agent Minmax — 20 parties vs MCTS base",
+    "minmax_v4":     "Progression de l'agent Minmax — 20 parties vs MCTS v4",
+    "minmax_tuned":  "Minmax features tunées — 20 parties vs MCTS v4",
+    "heuristic":     "Impact de l'heuristique — 20 parties vs Minmax",
+    "baseline":      "Agent final vs références — 20 parties par matchup",
+    "final":         "Comparaison finale — Hybrid vs MCTS best vs Minmax tuned",
 }
 
 # ── Game runner ────────────────────────────────────────────────────────────────
 
-def play_instrumented(agent_file_0: str, agent_file_1: str, time_limit: int) -> dict:
-    agent_0 = AgentProcess(agent_file_0, 0)
-    agent_1 = AgentProcess(agent_file_1, 1)
+def play_instrumented(agent_file_0: str, agent_file_1: str, time_limit: int,
+                      swap_sides: bool = False) -> dict:
+    # swap_sides: agent_file_0 plays as player 1, agent_file_1 plays as player 0.
+    # Result is always reported from agent_file_0's perspective.
+    if swap_sides:
+        a0 = AgentProcess(agent_file_0, 1)
+        a1 = AgentProcess(agent_file_1, 0)
+        player_of_a0 = 1
+    else:
+        a0 = AgentProcess(agent_file_0, 0)
+        a1 = AgentProcess(agent_file_1, 1)
+        player_of_a0 = 0
+
     remaining_times = [float(time_limit), float(time_limit)]
     move_counts = [0, 0]
 
@@ -118,37 +161,38 @@ def play_instrumented(agent_file_0: str, agent_file_1: str, time_limit: int) -> 
     try:
         while not Game.is_terminal(state) and all(t > 0 for t in remaining_times):
             current = Game.to_move(state)
-            agent = agent_0 if current == 0 else agent_1
+            agent = a0 if current == player_of_a0 else a1
             try:
                 action, elapsed = agent.get_action(state.copy(), remaining_times[current])
                 remaining_times[current] -= elapsed
                 move_counts[current] += 1
             except (TimeoutError, RuntimeError):
-                result = (-1, 1) if current == 0 else (1, -1)
+                result = (-1, 1) if current == player_of_a0 else (1, -1)
                 break
             if action not in Game.actions(state):
-                result = (-1, 1) if current == 0 else (1, -1)
+                result = (-1, 1) if current == player_of_a0 else (1, -1)
                 break
             Game.apply(state, action)
 
         if result is None:
-            if remaining_times[0] <= 0:
+            if remaining_times[player_of_a0] <= 0:
                 result = (-1, 1)
-            elif remaining_times[1] <= 0:
+            elif remaining_times[1 - player_of_a0] <= 0:
                 result = (1, -1)
             else:
-                result = (Game.utility(state, 0), Game.utility(state, 1))
+                result = (Game.utility(state, player_of_a0),
+                          Game.utility(state, 1 - player_of_a0))
     finally:
-        agent_0.shutdown()
-        agent_1.shutdown()
+        a0.shutdown()
+        a1.shutdown()
 
     return {
         "result":     result,
         "move_count": move_counts[0] + move_counts[1],
-        "elapsed_p0": time_limit - remaining_times[0],
-        "elapsed_p1": time_limit - remaining_times[1],
-        "moves_p0":   move_counts[0],
-        "moves_p1":   move_counts[1],
+        "elapsed_p0": time_limit - remaining_times[player_of_a0],
+        "elapsed_p1": time_limit - remaining_times[1 - player_of_a0],
+        "moves_p0":   move_counts[player_of_a0],
+        "moves_p1":   move_counts[1 - player_of_a0],
     }
 
 # ── Aggregation ────────────────────────────────────────────────────────────────
@@ -184,7 +228,8 @@ def run_matchup(label: str, agent_0: str, agent_1: str,
 
     with ProcessPoolExecutor(max_workers=NUM_WORKERS) as executor:
         futures = {
-            executor.submit(play_instrumented, agent_0, agent_1, TIME_LIMIT_SECONDS): i
+            executor.submit(play_instrumented, agent_0, agent_1, TIME_LIMIT_SECONDS,
+                            swap_sides=(i >= NUM_GAMES // 2)): i
             for i in range(NUM_GAMES)
         }
         for future in as_completed(futures):
@@ -219,10 +264,13 @@ if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "all"
 
     matchup_map = {
-        "mcts":      MCTS_ABLATION_MATCHUPS,
-        "minmax":    MINMAX_ABLATION_MATCHUPS,
-        "heuristic": HEURISTIC_ABLATION_MATCHUPS,
-        "baseline":  BASELINE_MATCHUPS,
+        "mcts":          MCTS_ABLATION_MATCHUPS,
+        "minmax":        MINMAX_ABLATION_MATCHUPS,
+        "minmax_v4":     MINMAX_VS_MCTS4_MATCHUPS,
+        "minmax_tuned":  MINMAX_TUNED_MATCHUPS,
+        "heuristic":     HEURISTIC_ABLATION_MATCHUPS,
+        "baseline":      BASELINE_MATCHUPS,
+        "final":         FINAL_MATCHUPS,
     }
     targets = list(matchup_map.keys()) if target == "all" else [target]
 
