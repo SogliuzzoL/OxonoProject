@@ -3,27 +3,23 @@ from oxono import Game
 
 X_SYMBOL = "x"
 O_SYMBOL = "o"
-MAX_HEURISTIC_VALUE=10000
+MAX_HEURISTIC_VALUE = 10000
+BOARD_SIZE = 6
 
 
 def evaluate(state, player):
-    """
-    Estimate the value of a state for the player
-    """
     if Game.is_terminal(state):
         return Game.utility(state, player) * MAX_HEURISTIC_VALUE
     player_score = 0
     player_score += score_all_lines(state, player)
     player_score += score_immediate_threats(state, player)
+    player_score += score_remaining_pieces(state, player)
+    player_score += score_totem_control(state, player)
 
     return player_score
 
 
-
 def score_all_lines(state, player):
-    """
-    Score for rows and columns checking color/symbol alignments
-    """
     board = state.board
     total = 0
 
@@ -38,9 +34,6 @@ def score_all_lines(state, player):
 
 
 def score_line(line, player):
-    """
-    Create a score of a line (row or col) for a player
-    """
     score = 0
 
     number_consecutive_player_pieces = 0
@@ -95,9 +88,6 @@ def score_line(line, player):
 
 
 def score_immediate_threats(state, player):
-    """
-    Detect windows that are one move away from a winning pattern
-    """
     board = state.board
     opponent = get_opponent(player)
     score = 0
@@ -121,7 +111,6 @@ def score_immediate_threats(state, player):
         player_threat_count += player_threats
         opponent_threat_count += opponent_threats
 
-    # if one player has multiple threats possibilites
     if player_threat_count >= 2:
         score += 5000
     if opponent_threat_count >= 2:
@@ -131,17 +120,14 @@ def score_immediate_threats(state, player):
 
 
 def score_threats_in_line(line, player, opponent):
-
     score = 0
     player_threat_count = 0
     opponent_threat_count = 0
-    # on check fenetre de 4 cases donc len-3
-    # soit 0 à 3, soit 1 À 4, soit 2 À 5
+
     for start in range(len(line) - 3):
         window = line[start : start + 4]
 
         empty_cell_count = sum(1 for cell in window if cell is None)
-        # on check uniquement les fenetres de cases avec exactement 1 case vide
         if empty_cell_count != 1:
             continue
 
@@ -162,7 +148,7 @@ def score_threats_in_line(line, player, opponent):
             score -= 900
             opponent_threat_count += 1
 
-        # symbol threats
+        # symbol threats: shared threat, not attributed to a specific player
         x_pieces_window_count = sum(
             1 for cell in non_empty_cells_window if cell[0] == X_SYMBOL
         )
@@ -170,13 +156,52 @@ def score_threats_in_line(line, player, opponent):
             1 for cell in non_empty_cells_window if cell[0] == O_SYMBOL
         )
 
-
         if x_pieces_window_count == 3:
             score += 120
+            player_threat_count += 1
         if o_pieces_window_count == 3:
             score += 120
+            player_threat_count += 1
 
     return score, player_threat_count, opponent_threat_count
+
+
+def score_remaining_pieces(state, player):
+    """
+    Score based on piece count advantage.
+    Having more pieces remaining than the opponent means more placement flexibility.
+    """
+    opponent = get_opponent(player)
+    player_pieces_remaining = state.pieces_x[player] + state.pieces_o[player]
+    opponent_pieces_remaining = state.pieces_x[opponent] + state.pieces_o[opponent]
+    return (player_pieces_remaining - opponent_pieces_remaining) * 5
+
+
+def score_totem_control(state, player):
+    """
+    Score based on how many of the player's pieces surround each totem.
+    More friendly pieces around a totem = more placement options on future turns.
+    """
+    score = 0
+    opponent = get_opponent(player)
+    board = state.board
+
+    for totem_position in [state.totem_O, state.totem_X]:
+        totem_row, totem_col = totem_position
+        for delta_row in [-1, 0, 1]:
+            for delta_col in [-1, 0, 1]:
+                if delta_row == 0 and delta_col == 0:
+                    continue
+                adjacent_row = totem_row + delta_row
+                adjacent_col = totem_col + delta_col
+                if 0 <= adjacent_row < BOARD_SIZE and 0 <= adjacent_col < BOARD_SIZE:
+                    cell = board[adjacent_row][adjacent_col]
+                    if cell is not None and cell[1] == player:
+                        score += 3
+                    elif cell is not None and cell[1] == opponent:
+                        score -= 3
+
+    return score
 
 
 def get_opponent(player):
