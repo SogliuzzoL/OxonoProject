@@ -1,10 +1,20 @@
+import logging
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
+from tqdm import tqdm
+
 from run_stats import aggregate, play_instrumented
 from stats_plot import generate_plots
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s, %(levelname)s, %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 # Configuration du Tournoi
 TIME_LIMIT_SECONDS = 300
@@ -65,10 +75,10 @@ def generate_pairings(agents_ranked, past_matches, past_byes):
 
 
 def run_tournament():
-    print(
-        f"🏆 Swiss Tournament - {NUM_ROUNDS} Rounds, {MATCHES_PER_SIDE * 2} Matches per Pairing"
+    logger.info(
+        f"🏆 Swiss Tournament, {NUM_ROUNDS} Rounds, {MATCHES_PER_SIDE * 2} Matches per Pairing"
     )
-    print("=" * 60)
+    logger.info("=" * 60)
 
     scores = {agent: 0 for agent in AGENTS}
     past_matches = set()
@@ -77,7 +87,7 @@ def run_tournament():
 
     with ThreadPoolExecutor(max_workers=NUM_WORKERS) as executor:
         for round_num in range(1, NUM_ROUNDS + 1):
-            print(f"\n⚔️ Round {round_num}/{NUM_ROUNDS}")
+            logger.info(f"⚔️ Round {round_num}/{NUM_ROUNDS}")
 
             ranked_agents = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
             pairings, bye_player = generate_pairings(
@@ -86,14 +96,14 @@ def run_tournament():
 
             if bye_player:
                 scores[bye_player] += BYE_POINTS
-                print(
+                logger.info(
                     f"🌟 Bye accordé à : {Path(bye_player).stem} (+{BYE_POINTS} points)"
                 )
 
             futures = {}
             for match_id, (a0, a1) in enumerate(pairings):
-                print(
-                    f"Match {match_id + 1}/{len(pairings)} : {Path(a0).stem} vs {Path(a1).stem} ( score: {scores[a0]} - {scores[a1]} )"
+                logger.info(
+                    f"Match {match_id + 1}/{len(pairings)} : {Path(a0).stem} vs {Path(a1).stem} ( score: {scores[a0]}, {scores[a1]} )"
                 )
 
                 for _ in range(MATCHES_PER_SIDE):
@@ -107,10 +117,16 @@ def run_tournament():
                     )
                     futures[f2] = (a0, a1)
 
-            completed_matches = 0
             total_matches_in_round = len(pairings) * MATCHES_PER_SIDE * 2
 
-            for future in as_completed(futures):
+            # Intégration de tqdm ici sur as_completed
+            for future in tqdm(
+                as_completed(futures),
+                total=total_matches_in_round,
+                desc=f"Progression Round {round_num}",
+                unit="match",
+                dynamic_ncols=True,
+            ):
                 a0, a1 = futures[future]
                 stats = future.result()
 
@@ -138,25 +154,19 @@ def run_tournament():
                 all_game_stats[a0].append(stats_a0)
                 all_game_stats[a1].append(stats_a1)
 
-                completed_matches += 1
-                if completed_matches % (MATCHES_PER_SIDE * 2) == 0:
-                    print(
-                        f"Progression Round {round_num}: {completed_matches}/{total_matches_in_round} matches completed"
-                    )
-
-    print("\n" + "=" * 60)
-    print("🥇 Final Scores:")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("🥇 Final Scores:")
+    logger.info("=" * 60)
 
     final_ranking = sorted(scores.items(), key=lambda item: item[1], reverse=True)
 
     for rank, (agent, score) in enumerate(final_ranking, 1):
-        print(f"{rank}. {Path(agent).stem:<20} : {score:>3} points")
+        logger.info(f"{rank}. {Path(agent).stem:<20} : {score:>3} points")
 
     formatted_results = []
     for agent, _ in final_ranking:
         label = Path(agent).stem
-        # Sécurité : Si un agent n'a joué aucun match physique à cause du Bye
+        # Sécurité, si un agent n'a joué aucun match physique à cause du Bye
         if len(all_game_stats[agent]) > 0:
             agg_stats = aggregate(all_game_stats[agent])
         else:
@@ -167,7 +177,7 @@ def run_tournament():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = f"plots/tournament_{timestamp}"
 
-    print(f"\n📈 Generating plots in {out_dir}...")
+    logger.info(f"📈 Generating plots in {out_dir}...")
     generate_plots(
         formatted_results,
         f"Résultats Tournoi Suisse, {NUM_ROUNDS} rondes, {MATCHES_PER_SIDE * 2} matchs par rencontre",
