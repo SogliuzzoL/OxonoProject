@@ -9,21 +9,40 @@ from stats_plot import generate_plots
 # Configuration du Tournoi
 TIME_LIMIT_SECONDS = 300
 NUM_WORKERS = 4
-MATCHES_PER_SIDE = 5
+MATCHES_PER_SIDE = 10
+
+# Points attribués pour un Bye (exemption)
+# Par défaut, équivalent à un match nul pour toutes les parties non jouées
+BYE_POINTS = MATCHES_PER_SIDE * 2
 
 AGENTS = [
     "athenan_agent.py",
     "mcts_agent.py",
     "minmax_agent.py",
+    "zero_agent.py",
     "random_agent.py",
 ]
 
 NUM_ROUNDS = math.ceil(math.log2(len(AGENTS))) + 1
 
 
-def generate_pairings(agents_ranked, past_matches):
+def generate_pairings(agents_ranked, past_matches, past_byes):
     pairings = []
     unpaired = list(agents_ranked)
+    bye_player = None
+
+    # Gestion du nombre impair (attribution du Bye)
+    if len(unpaired) % 2 != 0:
+        # Recherche du joueur le moins bien classé n'ayant pas encore eu de Bye
+        for i in range(len(unpaired) - 1, -1, -1):
+            if unpaired[i] not in past_byes:
+                bye_player = unpaired.pop(i)
+                past_byes.add(bye_player)
+                break
+
+        # Sécurité au cas où tous les agents restants auraient déjà eu un Bye
+        if bye_player is None and unpaired:
+            bye_player = unpaired.pop(-1)
 
     while unpaired:
         p1 = unpaired.pop(0)
@@ -42,25 +61,34 @@ def generate_pairings(agents_ranked, past_matches):
             p2 = unpaired.pop(0)
             pairings.append((p1, p2))
 
-    return pairings
+    return pairings, bye_player
 
 
 def run_tournament():
     print(
-        f"Swiss Tournament - {NUM_ROUNDS} Rounds, {MATCHES_PER_SIDE * 2} Matches per Pairing"
+        f"🏆 Swiss Tournament - {NUM_ROUNDS} Rounds, {MATCHES_PER_SIDE * 2} Matches per Pairing"
     )
     print("=" * 60)
 
     scores = {agent: 0 for agent in AGENTS}
     past_matches = set()
+    past_byes = set()
     all_game_stats = {agent: [] for agent in AGENTS}
 
     with ThreadPoolExecutor(max_workers=NUM_WORKERS) as executor:
         for round_num in range(1, NUM_ROUNDS + 1):
-            print(f"Round {round_num}/{NUM_ROUNDS}")
+            print(f"\n⚔️ Round {round_num}/{NUM_ROUNDS}")
 
             ranked_agents = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
-            pairings = generate_pairings(ranked_agents, past_matches)
+            pairings, bye_player = generate_pairings(
+                ranked_agents, past_matches, past_byes
+            )
+
+            if bye_player:
+                scores[bye_player] += BYE_POINTS
+                print(
+                    f"🌟 Bye accordé à : {Path(bye_player).stem} (+{BYE_POINTS} points)"
+                )
 
             futures = {}
             for match_id, (a0, a1) in enumerate(pairings):
@@ -117,7 +145,7 @@ def run_tournament():
                     )
 
     print("\n" + "=" * 60)
-    print("Final Scores:")
+    print("🥇 Final Scores:")
     print("=" * 60)
 
     final_ranking = sorted(scores.items(), key=lambda item: item[1], reverse=True)
@@ -128,13 +156,18 @@ def run_tournament():
     formatted_results = []
     for agent, _ in final_ranking:
         label = Path(agent).stem
-        agg_stats = aggregate(all_game_stats[agent])
+        # Sécurité : Si un agent n'a joué aucun match physique à cause du Bye
+        if len(all_game_stats[agent]) > 0:
+            agg_stats = aggregate(all_game_stats[agent])
+        else:
+            agg_stats = (0, 0, 0, 0.0, 0.0, 0.0)
+
         formatted_results.append((label, *agg_stats))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = f"plots/tournament_{timestamp}"
 
-    print(f"Generating plots in {out_dir}...")
+    print(f"\n📈 Generating plots in {out_dir}...")
     generate_plots(
         formatted_results,
         f"Résultats Tournoi Suisse, {NUM_ROUNDS} rondes, {MATCHES_PER_SIDE * 2} matchs par rencontre",
