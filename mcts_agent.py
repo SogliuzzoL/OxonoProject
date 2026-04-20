@@ -27,5 +27,7 @@ class MCTSAgent(Agent):
         pieces_remaining = state.pieces_x[self.player] + state.pieces_o[self.player]
         time_per_move = remaining_time / max(pieces_remaining, 1)
 
-        self.mcts.run(state, time_simulation=time_per_move, c_puct=1.5, player=self.player)
+        self.mcts.run(
+            state, time_simulation=time_per_move, c_puct=1.5, player=self.player
+        )
         return self.mcts.get_best_action()

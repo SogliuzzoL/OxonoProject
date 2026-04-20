@@ -5,16 +5,16 @@ from files_99942500_26482510.heuristic import evaluate
 from files_99942500_26482510.zobrist import compute_zobrist_hash, generate_zobrist_table
 from oxono import Game
 
-MINUS_INFINITY      = float("-inf")
-PLUS_INFINITY       = float("inf")
-ZOBRIST_TABLE       = generate_zobrist_table()
-QUIESCENCE_DEPTH    = 2
+MINUS_INFINITY = float("-inf")
+PLUS_INFINITY = float("inf")
+ZOBRIST_TABLE = generate_zobrist_table()
+QUIESCENCE_DEPTH = 2
 LATE_MOVE_THRESHOLD = 6
-SINGULAR_MARGIN     = 2000
-PROBCUT_MIN_DEPTH   = 6
-PROBCUT_REDUCTION   = 2
-PROBCUT_MARGIN      = 800
-ASPIRATION_DELTA    = 50
+SINGULAR_MARGIN = 2000
+PROBCUT_MIN_DEPTH = 6
+PROBCUT_REDUCTION = 2
+PROBCUT_MARGIN = 800
+ASPIRATION_DELTA = 50
 
 
 class SearchTimeout(Exception):
@@ -49,8 +49,13 @@ class MinimaxAgent(Agent):
                 break
             try:
                 move, score = _search_aspiration(
-                    state, depth, self.player, deadline,
-                    killer_moves, transposition_table, prev_score
+                    state,
+                    depth,
+                    self.player,
+                    deadline,
+                    killer_moves,
+                    transposition_table,
+                    prev_score,
                 )
                 if move is not None:
                     best_move = move
@@ -62,22 +67,39 @@ class MinimaxAgent(Agent):
         return best_move
 
 
-def _search_aspiration(state, depth, player, deadline, killer_moves,
-                       transposition_table, prev_score):
+def _search_aspiration(
+    state, depth, player, deadline, killer_moves, transposition_table, prev_score
+):
     if prev_score is None or depth <= 2:
-        move = _search(state, depth, player, deadline, killer_moves,
-                       transposition_table, MINUS_INFINITY, PLUS_INFINITY)
-        score = _search_score(state, depth, player, deadline, killer_moves,
-                              transposition_table)
+        move = _search(
+            state,
+            depth,
+            player,
+            deadline,
+            killer_moves,
+            transposition_table,
+            MINUS_INFINITY,
+            PLUS_INFINITY,
+        )
+        score = _search_score(
+            state, depth, player, deadline, killer_moves, transposition_table
+        )
         return move, score
 
     alpha = prev_score - ASPIRATION_DELTA
-    beta  = prev_score + ASPIRATION_DELTA
+    beta = prev_score + ASPIRATION_DELTA
 
     while True:
-        move, score = _search_with_window(state, depth, player, deadline,
-                                          killer_moves, transposition_table,
-                                          alpha, beta)
+        move, score = _search_with_window(
+            state,
+            depth,
+            player,
+            deadline,
+            killer_moves,
+            transposition_table,
+            alpha,
+            beta,
+        )
         if score <= alpha:
             alpha = MINUS_INFINITY
         elif score >= beta:
@@ -86,16 +108,17 @@ def _search_aspiration(state, depth, player, deadline, killer_moves,
             return move, score
 
 
-def _search_with_window(state, depth, player, deadline, killer_moves,
-                        transposition_table, alpha, beta):
+def _search_with_window(
+    state, depth, player, deadline, killer_moves, transposition_table, alpha, beta
+):
     scored = _score_moves(state, player)
     if not scored:
         return None, 0
 
     singular = _singular_move(scored)
-    ordered  = _order_moves_from_scored(scored, killer_moves.get(depth))
+    ordered = _order_moves_from_scored(scored, killer_moves.get(depth))
 
-    best_move  = None
+    best_move = None
     best_score = MINUS_INFINITY
 
     for score, move in ordered:
@@ -103,26 +126,35 @@ def _search_with_window(state, depth, player, deadline, killer_moves,
         new_state = state.copy()
         Game.apply(new_state, move)
         search_depth = depth if move == singular else depth - 1
-        node_score = _alpha_beta(new_state, search_depth, player, alpha, beta,
-                                 deadline, killer_moves, transposition_table,
-                                 allow_extension=(move != singular))
+        node_score = _alpha_beta(
+            new_state,
+            search_depth,
+            player,
+            alpha,
+            beta,
+            deadline,
+            killer_moves,
+            transposition_table,
+            allow_extension=(move != singular),
+        )
         if node_score > best_score:
             best_score = node_score
-            best_move  = move
+            best_move = move
         alpha = max(alpha, best_score)
 
     return best_move, best_score
 
 
-def _search(state, depth, player, deadline, killer_moves, transposition_table,
-            alpha, beta):
+def _search(
+    state, depth, player, deadline, killer_moves, transposition_table, alpha, beta
+):
     scored = _score_moves(state, player)
     if not scored:
         return None
 
     singular = _singular_move(scored)
-    ordered  = _order_moves_from_scored(scored, killer_moves.get(depth))
-    best_move  = None
+    ordered = _order_moves_from_scored(scored, killer_moves.get(depth))
+    best_move = None
     best_score = MINUS_INFINITY
 
     for score, move in ordered:
@@ -130,12 +162,20 @@ def _search(state, depth, player, deadline, killer_moves, transposition_table,
         new_state = state.copy()
         Game.apply(new_state, move)
         search_depth = depth if move == singular else depth - 1
-        node_score = _alpha_beta(new_state, search_depth, player, alpha, beta,
-                                 deadline, killer_moves, transposition_table,
-                                 allow_extension=(move != singular))
+        node_score = _alpha_beta(
+            new_state,
+            search_depth,
+            player,
+            alpha,
+            beta,
+            deadline,
+            killer_moves,
+            transposition_table,
+            allow_extension=(move != singular),
+        )
         if node_score > best_score:
             best_score = node_score
-            best_move  = move
+            best_move = move
         alpha = max(alpha, best_score)
 
     return best_move
@@ -146,7 +186,7 @@ def _search_score(state, depth, player, deadline, killer_moves, transposition_ta
     if not scored:
         return 0
     singular = _singular_move(scored)
-    ordered  = _order_moves_from_scored(scored, killer_moves.get(depth))
+    ordered = _order_moves_from_scored(scored, killer_moves.get(depth))
     alpha = MINUS_INFINITY
     best_score = MINUS_INFINITY
     for score, move in ordered:
@@ -154,9 +194,17 @@ def _search_score(state, depth, player, deadline, killer_moves, transposition_ta
         new_state = state.copy()
         Game.apply(new_state, move)
         search_depth = depth if move == singular else depth - 1
-        node_score = _alpha_beta(new_state, search_depth, player, alpha, PLUS_INFINITY,
-                                 deadline, killer_moves, transposition_table,
-                                 allow_extension=(move != singular))
+        node_score = _alpha_beta(
+            new_state,
+            search_depth,
+            player,
+            alpha,
+            PLUS_INFINITY,
+            deadline,
+            killer_moves,
+            transposition_table,
+            allow_extension=(move != singular),
+        )
         best_score = max(best_score, node_score)
         alpha = max(alpha, best_score)
     return best_score
@@ -176,7 +224,7 @@ def _score_moves(state, player):
 
 
 def _order_moves_from_scored(scored, killer):
-    ordered   = []
+    ordered = []
     remaining = []
     for score, move in scored:
         if killer is not None and move == killer:
@@ -194,8 +242,17 @@ def _singular_move(scored_moves):
     return None
 
 
-def _alpha_beta(state, depth, player, alpha, beta, deadline, killer_moves,
-                transposition_table, allow_extension=True):
+def _alpha_beta(
+    state,
+    depth,
+    player,
+    alpha,
+    beta,
+    deadline,
+    killer_moves,
+    transposition_table,
+    allow_extension=True,
+):
     _check_timeout(deadline)
 
     if Game.is_terminal(state):
@@ -218,16 +275,23 @@ def _alpha_beta(state, depth, player, alpha, beta, deadline, killer_moves,
 
     if depth >= PROBCUT_MIN_DEPTH:
         probcut_beta = beta + PROBCUT_MARGIN
-        shallow = _alpha_beta(state, depth - PROBCUT_REDUCTION, player,
-                              probcut_beta - 1, probcut_beta,
-                              deadline, killer_moves, transposition_table,
-                              allow_extension=False)
+        shallow = _alpha_beta(
+            state,
+            depth - PROBCUT_REDUCTION,
+            player,
+            probcut_beta - 1,
+            probcut_beta,
+            deadline,
+            killer_moves,
+            transposition_table,
+            allow_extension=False,
+        )
         if shallow >= probcut_beta:
             return shallow
 
-    scored   = _score_moves(state, player)
+    scored = _score_moves(state, player)
     singular = _singular_move(scored) if allow_extension else None
-    ordered  = _order_moves_from_scored(scored, killer_moves.get(depth))
+    ordered = _order_moves_from_scored(scored, killer_moves.get(depth))
 
     if state.current_player == player:
         best_score = MINUS_INFINITY
@@ -244,13 +308,29 @@ def _alpha_beta(state, depth, player, alpha, beta, deadline, killer_moves,
             if move == singular:
                 search_depth = depth
 
-            score = _alpha_beta(new_state, search_depth, player, alpha, beta,
-                                deadline, killer_moves, transposition_table,
-                                allow_extension=(move != singular))
+            score = _alpha_beta(
+                new_state,
+                search_depth,
+                player,
+                alpha,
+                beta,
+                deadline,
+                killer_moves,
+                transposition_table,
+                allow_extension=(move != singular),
+            )
             if is_late and move != singular and score > alpha:
-                score = _alpha_beta(new_state, depth - 1, player, alpha, beta,
-                                    deadline, killer_moves, transposition_table,
-                                    allow_extension=True)
+                score = _alpha_beta(
+                    new_state,
+                    depth - 1,
+                    player,
+                    alpha,
+                    beta,
+                    deadline,
+                    killer_moves,
+                    transposition_table,
+                    allow_extension=True,
+                )
 
             best_score = max(score, best_score)
             alpha = max(alpha, best_score)
@@ -276,13 +356,29 @@ def _alpha_beta(state, depth, player, alpha, beta, deadline, killer_moves,
             if move == singular:
                 search_depth = depth
 
-            score = _alpha_beta(new_state, search_depth, player, alpha, beta,
-                                deadline, killer_moves, transposition_table,
-                                allow_extension=(move != singular))
+            score = _alpha_beta(
+                new_state,
+                search_depth,
+                player,
+                alpha,
+                beta,
+                deadline,
+                killer_moves,
+                transposition_table,
+                allow_extension=(move != singular),
+            )
             if is_late and move != singular and score < beta:
-                score = _alpha_beta(new_state, depth - 1, player, alpha, beta,
-                                    deadline, killer_moves, transposition_table,
-                                    allow_extension=True)
+                score = _alpha_beta(
+                    new_state,
+                    depth - 1,
+                    player,
+                    alpha,
+                    beta,
+                    deadline,
+                    killer_moves,
+                    transposition_table,
+                    allow_extension=True,
+                )
 
             worst_score = min(score, worst_score)
             beta = min(beta, worst_score)
@@ -300,7 +396,9 @@ def _quiescence(state, player, alpha, beta, deadline, q_depth):
     stand_pat = evaluate(state, player)
     if q_depth <= 0:
         return stand_pat
-    tactical_moves = [m for m in Game.actions(state) if Game.is_terminal(_apply(state, m))]
+    tactical_moves = [
+        m for m in Game.actions(state) if Game.is_terminal(_apply(state, m))
+    ]
     if not tactical_moves:
         return stand_pat
     if state.current_player == player:
@@ -308,7 +406,9 @@ def _quiescence(state, player, alpha, beta, deadline, q_depth):
             return stand_pat
         alpha = max(alpha, stand_pat)
         for move in tactical_moves:
-            score = _quiescence(_apply(state, move), player, alpha, beta, deadline, q_depth - 1)
+            score = _quiescence(
+                _apply(state, move), player, alpha, beta, deadline, q_depth - 1
+            )
             alpha = max(alpha, score)
             if alpha >= beta:
                 break
@@ -318,7 +418,9 @@ def _quiescence(state, player, alpha, beta, deadline, q_depth):
             return stand_pat
         beta = min(beta, stand_pat)
         for move in tactical_moves:
-            score = _quiescence(_apply(state, move), player, alpha, beta, deadline, q_depth - 1)
+            score = _quiescence(
+                _apply(state, move), player, alpha, beta, deadline, q_depth - 1
+            )
             beta = min(beta, score)
             if beta <= alpha:
                 break
