@@ -132,7 +132,12 @@ FINAL_MATCHUPS = [
     ("MCTS best vs Minmax tuned", MCTS_BEST, MM_BEST),
 ]
 
+LMR_MATCHUPS = [
+    ("Avec LMR (seuil=6)", "minmax_lmr.py", "mcts_agent4_tmp.py"),
+]
+
 BAR_TITLES = {
+<<<<<<< HEAD
     "mcts": "Progression de l'agent MCTS — 20 parties vs Minmax",
     "minmax": "Progression de l'agent Minmax — 20 parties vs MCTS base",
     "minmax_v4": "Progression de l'agent Minmax — 20 parties vs MCTS v4",
@@ -140,6 +145,16 @@ BAR_TITLES = {
     "heuristic": "Impact de l'heuristique — 20 parties vs Minmax",
     "baseline": "Agent final vs références — 20 parties par matchup",
     "final": "Comparaison finale — Hybrid vs MCTS best vs Minmax tuned",
+=======
+    "mcts":          "Progression de l'agent MCTS — 20 parties vs Minmax",
+    "minmax":        "Progression de l'agent Minmax — 20 parties vs MCTS base",
+    "minmax_v4":     "Progression de l'agent Minmax — 20 parties vs MCTS v4",
+    "minmax_tuned":  "Minmax features tunées — 20 parties vs MCTS v4",
+    "heuristic":     "Impact de l'heuristique — 20 parties vs Minmax",
+    "baseline":      "Agent final vs références — 20 parties par matchup",
+    "final":         "Comparaison finale — Hybrid vs MCTS best vs Minmax tuned",
+    "lmr":           "Impact du LMR (seuil=6) — 20 parties vs MCTS",
+>>>>>>> testPlots
 }
 
 # ── Game runner ────────────────────────────────────────────────────────────────
@@ -296,6 +311,7 @@ if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "all"
 
     matchup_map = {
+<<<<<<< HEAD
         "mcts": MCTS_ABLATION_MATCHUPS,
         "minmax": MINMAX_ABLATION_MATCHUPS,
         "minmax_v4": MINMAX_VS_MCTS4_MATCHUPS,
@@ -303,6 +319,16 @@ if __name__ == "__main__":
         "heuristic": HEURISTIC_ABLATION_MATCHUPS,
         "baseline": BASELINE_MATCHUPS,
         "final": FINAL_MATCHUPS,
+=======
+        "mcts":          MCTS_ABLATION_MATCHUPS,
+        "minmax":        MINMAX_ABLATION_MATCHUPS,
+        "minmax_v4":     MINMAX_VS_MCTS4_MATCHUPS,
+        "minmax_tuned":  MINMAX_TUNED_MATCHUPS,
+        "heuristic":     HEURISTIC_ABLATION_MATCHUPS,
+        "baseline":      BASELINE_MATCHUPS,
+        "final":         FINAL_MATCHUPS,
+        "lmr":           LMR_MATCHUPS,
+>>>>>>> testPlots
     }
     targets = list(matchup_map.keys()) if target == "all" else [target]
 
