@@ -128,6 +128,10 @@ FINAL_MATCHUPS = [
     ("MCTS best vs Minmax tuned", MCTS_BEST,   MM_BEST),
 ]
 
+LMR_MATCHUPS = [
+    ("Avec LMR (seuil=6)", "minmax_lmr.py", "mcts_agent4_tmp.py"),
+]
+
 BAR_TITLES = {
     "mcts":          "Progression de l'agent MCTS — 20 parties vs Minmax",
     "minmax":        "Progression de l'agent Minmax — 20 parties vs MCTS base",
@@ -136,6 +140,7 @@ BAR_TITLES = {
     "heuristic":     "Impact de l'heuristique — 20 parties vs Minmax",
     "baseline":      "Agent final vs références — 20 parties par matchup",
     "final":         "Comparaison finale — Hybrid vs MCTS best vs Minmax tuned",
+    "lmr":           "Impact du LMR (seuil=6) — 20 parties vs MCTS",
 }
 
 # ── Game runner ────────────────────────────────────────────────────────────────
@@ -271,6 +276,7 @@ if __name__ == "__main__":
         "heuristic":     HEURISTIC_ABLATION_MATCHUPS,
         "baseline":      BASELINE_MATCHUPS,
         "final":         FINAL_MATCHUPS,
+        "lmr":           LMR_MATCHUPS,
     }
     targets = list(matchup_map.keys()) if target == "all" else [target]
 
