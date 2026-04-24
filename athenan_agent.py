@@ -42,7 +42,11 @@ class AthenanAgent(Agent):
         remaining_time -= elapsed_time
 
         pieces_remaining = state.pieces_x[self.player] + state.pieces_o[self.player]
-        time_to_act = remaining_time / pieces_remaining
+        time_to_act = (
+            remaining_time / pieces_remaining
+            if pieces_remaining > 1
+            else remaining_time / 2
+        )
 
         deadline = time.time() + time_to_act
 

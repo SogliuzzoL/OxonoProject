@@ -27,13 +27,13 @@ BYE_POINTS = MATCHES_PER_SIDE * 2
 
 AGENTS = [
     "athenan_agent.py",
-    "mcts_agent.py",
+    # "mcts_agent.py",
     "minmax_agent.py",
-    "zero_agent.py",
-    "random_agent.py",
+    # "zero_agent.py",
+    # "random_agent.py",
 ]
 
-NUM_ROUNDS = math.ceil(math.log2(len(AGENTS))) + 1
+NUM_ROUNDS = math.ceil(math.log2(len(AGENTS)))
 
 
 def generate_pairings(agents_ranked, past_matches, past_byes):
