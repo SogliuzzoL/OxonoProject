@@ -50,7 +50,7 @@ class AthenanTrainer:
         self.device = device
         self.net = R2AthenanNet(board_size=6).to(self.device)
         self.optimizer = optim.SGD(
-            self.net.parameters(), lr=0.001, momentum=0.9, weight_decay=1e-4
+            self.net.parameters(), lr=0.0001, momentum=0.9, weight_decay=1e-4
         )
         self.criterion = torch.nn.MSELoss()
 
